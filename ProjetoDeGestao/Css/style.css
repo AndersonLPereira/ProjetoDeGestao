@@ -1,0 +1,62 @@
+* {
+    margin: 0;
+    padding: 0;
+
+}
+
+body {
+    min-height: 100%;
+    background-color: rgba(159, 159, 159, 0.415);
+    font-family: bold 700;
+    color: #fff;
+}
+
+nav {
+    background-color: #94adfc;
+}
+
+nav ul {
+    width: 100%;
+    /*100% da largara da tela*/
+    list-style: none;
+    /*Remove marcação de lista, as bolinhas*/
+    display: flex;
+    /*Itens alinhados a horizontal*/
+    justify-content: flex-end;
+    /*itens alinhados a direita*/
+    align-items: center;
+    /*alinhar ao centro*/
+
+}
+
+nav li:first-child {
+    height: 60px;
+    /*altura dos itens do menu em 60px*/
+    margin-right: auto;
+}
+
+nav a {
+    /*LINKS*/
+    height: 100%;
+    /*100% da altura*/
+    padding: 0 30px;
+    /*Espaçamento da altura em 0, espaçamentos entre os itens de 30px*/
+    display: flex;
+    align-items: center;
+    /*alinhar os itens ao centro horizontalmente*/
+    color: black;
+    text-decoration: none;/*tirar sublinado de link*/
+}
+
+.icon {
+    fill: #fff;
+    /*preenchimento de todo icone em branco*/
+}
+
+
+.logotipo{
+    max-width: 120px;
+    max-height: 120px;
+    width: auto;
+    height: auto;
+}
