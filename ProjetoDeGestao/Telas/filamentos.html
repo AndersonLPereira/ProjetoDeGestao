@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Filamentos - Nexus Flores</title>
+  <link rel="stylesheet" href="/ProjetoDeGestao/Css/style.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+
+<body>
+
+  <div class="overlay" onclick="toggleMenu()"></div>
+
+  <div class="mobile-header">
+    <button onclick="toggleMenu()"><i class="fas fa-bars"></i></button>
+    <h3>Nexus Flores Studio</h3>
+    <div style="width: 30px;"></div>
+  </div>
+
+  <div class="app-container">
+    <aside class="sidebar" id="sidebar">
+      <div class="logo-area">
+        <img src="/ProjetoDeGestao/img/Logo LB impressões 3D.png" alt="Logo LB" id="app-logo">
+        <h2>LB impressões 3D</h2>
+        <button class="close-menu-btn" onclick="toggleMenu()"><i class="fas fa-times"></i></button>
+      </div>
+
+      <nav>
+        <a href="/ProjetoDeGestao/Telas/dashboard.html" class="nav-link active"><i class="fas fa-chart-line"></i>
+          Dashboard</a>
+        <a href="/ProjetoDeGestao/Telas/orcamento.html" class="nav-link"><i class="fas fa-calculator"></i> Novo
+          Orçamento</a>
+        <a href="/ProjetoDeGestao/Telas/historico.html" class="nav-link"><i class="fas fa-list"></i> Histórico &
+          Vendas</a>
+        <a href="/ProjetoDeGestao/Telas/filamentos.html" class="nav-link"><i class="fas fa-circle-notch"></i>
+          Filamentos</a>
+        <a href="/ProjetoDeGestao/Telas/maquinas.html" class="nav-link"><i class="fas fa-print"></i> Máquinas</a>
+        <a href="/ProjetoDeGestao/Telas/backup.html" class="nav-link nav-backup"><i class="fas fa-database"></i> Backup
+          & Dados</a>
+      </nav>
+    </aside>
+
+    <main class="content">
+      <section id="filamentos" class="section active-section">
+        <header>
+          <h1>Estoque de Filamentos</h1>
+        </header>
+
+        <div class="form-container">
+          <div class="row">
+            <div class="input-group">
+              <label>Marca</label>
+              <input type="text" id="fil-marca">
+            </div>
+            <div class="input-group">
+              <label>Cor</label>
+              <input type="text" id="fil-cor">
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="input-group">
+              <label>Tipo (PLA/ABS)</label>
+              <input type="text" id="fil-tipo">
+            </div>
+            <div class="input-group">
+              <label>Preço Rolo (R$)</label>
+              <input type="number" id="fil-preco" step="0.01">
+            </div>
+            <div class="input-group">
+              <label>Peso Rolo (g)</label>
+              <input type="number" id="fil-peso" value="1000">
+            </div>
+          </div>
+
+          <button class="btn-primary full-width" onclick="salvarFilamento()">Cadastrar Filamento</button>
+        </div>
+
+        <div class="table-responsive">
+          <table id="tabela-filamentos">
+            <thead>
+              <tr>
+                <th>Marca/Cor</th>
+                <th>Preço</th>
+                <th>Estoque</th>
+                <th>Custo/g</th>
+                <th>Ação</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/ProjetoDeGestao/JS/index.js"></script>
+  <script>
+    if (typeof carregarFilamentos === "function") carregarFilamentos();
+  </script>
+</body>
+
+</html>

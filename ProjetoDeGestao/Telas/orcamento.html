@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Orçamento - Nexus Flores</title>
+  <link rel="stylesheet" href="/ProjetoDeGestao/Css/style.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+
+<body>
+
+  <div class="overlay" onclick="toggleMenu()"></div>
+
+  <div class="mobile-header">
+    <button onclick="toggleMenu()"><i class="fas fa-bars"></i></button>
+    <h3>Nexus Flores Studio</h3>
+    <div style="width: 30px;"></div>
+  </div>
+
+  <div class="app-container">
+    <aside class="sidebar" id="sidebar">
+      <div class="logo-area">
+        <img src="/ProjetoDeGestao/img/Logo LB impressões 3D.png" alt="Logo LB" id="app-logo">
+        <h2>LB impressões 3D</h2>
+        <button class="close-menu-btn" onclick="toggleMenu()"><i class="fas fa-times"></i></button>
+      </div>
+
+      <nav>
+        <a href="/ProjetoDeGestao/Telas/dashboard.html" class="nav-link active"><i class="fas fa-chart-line"></i>
+          Dashboard</a>
+        <a href="/ProjetoDeGestao/Telas/orcamento.html" class="nav-link"><i class="fas fa-calculator"></i> Novo
+          Orçamento</a>
+        <a href="/ProjetoDeGestao/Telas/historico.html" class="nav-link"><i class="fas fa-list"></i> Histórico &
+          Vendas</a>
+        <a href="/ProjetoDeGestao/Telas/filamentos.html" class="nav-link"><i class="fas fa-circle-notch"></i>
+          Filamentos</a>
+        <a href="/ProjetoDeGestao/Telas/maquinas.html" class="nav-link"><i class="fas fa-print"></i> Máquinas</a>
+        <a href="/ProjetoDeGestao/Telas/backup.html" class="nav-link nav-backup"><i class="fas fa-database"></i> Backup
+          & Dados</a>
+      </nav>
+    </aside>
+
+    <main class="content">
+      <section id="orcamento" class="section active-section">
+        <header>
+          <h1>Calculadora</h1>
+        </header>
+
+        <div class="split-view">
+          <div class="form-area">
+            <h3>Dados do Cliente</h3>
+            <div class="row">
+              <input type="text" id="orc-cliente" placeholder="Nome do Cliente">
+              <input type="text" id="orc-telefone" placeholder="Telefone">
+            </div>
+            <div class="row">
+              <input type="text" id="orc-produto" placeholder="Nome do Produto">
+              <input type="text" id="orc-categoria" placeholder="Categoria">
+            </div>
+
+            <h3>Impressão</h3>
+            <div class="input-group">
+              <label>Máquina</label>
+              <select id="orc-maquina" onchange="calcularEmTempoReal()"></select>
+            </div>
+            <div class="input-group">
+              <label>Tempo (Horas)</label>
+              <input type="number" id="orc-tempo" step="0.1" oninput="calcularEmTempoReal()">
+            </div>
+
+            <h3>Filamentos</h3>
+            <div id="filamentos-container"></div>
+            <button class="btn-secondary btn-sm full-width" onclick="adicionarLinhaFilamento()">+ Adicionar
+              filamento</button>
+
+            <h3>Custos & Margens</h3>
+            <div class="row">
+              <div class="input-group">
+                <label>Extras (R$)</label>
+                <input type="number" id="orc-extras" value="0" oninput="calcularEmTempoReal()">
+              </div>
+              <div class="input-group">
+                <label>Erro (%)</label>
+                <input type="number" id="orc-erro" value="10" oninput="calcularEmTempoReal()">
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="input-group">
+                <label>Lucro (%)</label>
+                <input type="number" id="orc-margem-lucro" value="100"
+                  oninput="limparPrecoManual(); calcularEmTempoReal()">
+              </div>
+              <div class="input-group">
+                <label>Preço Manual (R$)</label>
+                <input type="number" id="orc-preco-manual" oninput="calcularEmTempoReal()">
+              </div>
+            </div>
+          </div>
+
+          <div class="summary-area">
+            <h3>Resumo</h3>
+            <ul class="cost-list">
+              <li><span>Filamento:</span> <span id="res-filamento">R$ 0.00</span></li>
+              <li><span>Energia:</span> <span id="res-energia">R$ 0.00</span></li>
+              <li><span>Desgaste:</span> <span id="res-desgaste">R$ 0.00</span></li>
+              <li><span>Extras:</span> <span id="res-extras">R$ 0.00</span></li>
+              <li><span>Erro:</span> <span id="res-erro">R$ 0.00</span></li>
+              <li class="total-cost"><span>CUSTO TOTAL:</span> <span id="res-total-custo">R$ 0.00</span></li>
+            </ul>
+
+            <div class="final-price-box">
+              <small>Preço Sugerido</small>
+              <h2 id="res-preco-final">R$ 0.00</h2>
+              <small id="res-lucro-final" style="color: var(--accent);">Lucro: R$ 0.00</small>
+            </div>
+
+            <button class="btn-primary full-width" onclick="salvarOrcamento()" style="margin-top: 20px;">
+              <i class="fas fa-save"></i> Confirmar e Salvar
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/ProjetoDeGestao/JS/index.js"></script>
+  <script>
+    // prepara select e primeira linha de filamento
+    if (typeof initOrcamentoPage === "function") initOrcamentoPage();
+  </script>
+</body>
+
+</html>

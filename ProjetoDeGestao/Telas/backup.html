@@ -4,9 +4,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Dashboard - Nexus Flores</title>
+  <title>Backup - Nexus Flores</title>
   <link rel="stylesheet" href="/ProjetoDeGestao/Css/style.css">
-  <!-- <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet"> -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 
 <body>
@@ -15,14 +15,14 @@
 
   <div class="mobile-header">
     <button onclick="toggleMenu()"><i class="fas fa-bars"></i></button>
-    <h3>LB impressões 3D</h3>
+    <h3>Nexus Flores Studio</h3>
     <div style="width: 30px;"></div>
   </div>
 
   <div class="app-container">
     <aside class="sidebar" id="sidebar">
       <div class="logo-area">
-        <img src="/ProjetoDeGestao/img/Logo LB impressões 3D.png" alt="LB impressoes 3D" id="app-logo">
+        <img src="/ProjetoDeGestao/img/Logo LB impressões 3D.png" alt="Logo LB" id="app-logo">
         <h2>LB impressões 3D</h2>
         <button class="close-menu-btn" onclick="toggleMenu()"><i class="fas fa-times"></i></button>
       </div>
@@ -43,50 +43,31 @@
     </aside>
 
     <main class="content">
-      <section id="dashboard" class="section active-section">
-        <header class="header-flex">
-          <div>
-            <h1>Visão Geral</h1>
-            <p>Bem-vindo ao sistema Nexus Flores</p>
-          </div>
-          <div class="filter-box">
-            <label>Mês:</label>
-            <input type="month" id="dash-filtro-mes" onchange="atualizarDashboard()">
-          </div>
+      <section id="backup" class="section active-section">
+        <header>
+          <h1>Backup</h1>
         </header>
 
-        <div class="cards-grid">
-          <div class="card">
-            <h3>Faturamento (Mês)</h3>
-            <p class="big-number" id="dash-faturamento">R$ 0,00</p>
+        <div class="split-view">
+          <div class="form-container">
+            <h3><i class="fas fa-download"></i> Exportar</h3>
+            <button class="btn-primary full-width" onclick="gerarBackup()">Gerar Código</button>
+            <textarea id="backup-output" readonly placeholder="Código..."></textarea>
+            <button class="btn-secondary btn-sm full-width" onclick="copiarBackup()">Copiar</button>
           </div>
-          <div class="card">
-            <h3>Lucro Líquido (Mês)</h3>
-            <p class="big-number highlight" id="dash-lucro">R$ 0,00</p>
-          </div>
-          <div class="card">
-            <h3>Custo Total (Mês)</h3>
-            <p class="big-number" id="dash-custo">R$ 0,00</p>
-          </div>
-          <div class="card">
-            <h3>Vendas Aprovadas</h3>
-            <p class="big-number" id="dash-vendas">0</p>
-          </div>
-        </div>
 
-        <div class="recent-list">
-          <h3>Últimas Atividades (Geral)</h3>
-          <ul id="dash-history-list"></ul>
+          <div class="form-container" style="border: 1px solid var(--accent);">
+            <h3><i class="fas fa-upload"></i> Restaurar</h3>
+            <textarea id="backup-input" placeholder="Cole aqui..."></textarea>
+            <button class="btn-primary full-width" style="background-color: var(--danger); color: white;"
+              onclick="restaurarBackup()">Restaurar</button>
+          </div>
         </div>
       </section>
     </main>
   </div>
 
   <script src="/ProjetoDeGestao/JS/index.js"></script>
-  <script>
-    // carrega dashboard ao abrir
-    if (typeof atualizarDashboard === "function") atualizarDashboard();
-  </script>
 </body>
 
 </html>
