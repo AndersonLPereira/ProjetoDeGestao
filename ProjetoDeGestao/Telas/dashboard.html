@@ -2,19 +2,18 @@
 <html lang="pt-BR">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Dashboard - Nexus Flores</title>
-    <link rel="stylesheet" href="/ProjetoDeGestao/Css/style.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/ProjetoDeGestao/Css/style.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
 </head>
 
 <body>
-
     <div class="overlay" onclick="toggleMenu()"></div>
 
     <div class="mobile-header">
-        <button onclick="toggleMenu()"><i class="fas fa-bars"></i></button>
+        <button type="button" onclick="toggleMenu()"><i class="fas fa-bars"></i></button>
         <h3>Nexus Flores Studio</h3>
         <div style="width: 30px;"></div>
     </div>
@@ -22,14 +21,15 @@
     <div class="app-container">
         <aside class="sidebar" id="sidebar">
             <div class="logo-area">
-                <img src="/ProjetoDeGestao/img/Logo LB impressões 3D.png" alt="Logo LB" id="app-logo">
+                <img src="/ProjetoDeGestao/img/Logo LB impressões 3D.png" alt="Logo LB" id="app-logo" />
                 <h2>LB impressões 3D</h2>
-                <button class="close-menu-btn" onclick="toggleMenu()"><i class="fas fa-times"></i></button>
+                <button class="close-menu-btn" type="button" onclick="toggleMenu()"><i
+                        class="fas fa-times"></i></button>
             </div>
 
             <nav>
-                <a href="/ProjetoDeGestao/Telas/dashboard.html" class="nav-link active"><i
-                        class="fas fa-chart-line"></i> Dashboard</a>
+                <a href="/ProjetoDeGestao/Telas/dashboard.html" class="nav-link"><i class="fas fa-chart-line"></i>
+                    Dashboard</a>
                 <a href="/ProjetoDeGestao/Telas/orcamento.html" class="nav-link"><i class="fas fa-calculator"></i> Novo
                     Orçamento</a>
                 <a href="/ProjetoDeGestao/Telas/historico.html" class="nav-link"><i class="fas fa-list"></i> Histórico &
@@ -50,9 +50,10 @@
                         <h1>Visão Geral</h1>
                         <p>Bem-vindo ao sistema Nexus Flores</p>
                     </div>
+
                     <div class="filter-box">
-                        <label>Mês:</label>
-                        <input type="month" id="dash-filtro-mes" onchange="atualizarDashboard()">
+                        <label for="dash-filtro-mes">Mês:</label>
+                        <input type="month" id="dash-filtro-mes" onchange="atualizarDashboard()" />
                     </div>
                 </header>
 
@@ -83,11 +84,7 @@
         </main>
     </div>
 
-    <script src="/ProjetoDeGestao/JS/index.js"></script>
-    <script>
-        // carrega dashboard ao abrir
-        if (typeof atualizarDashboard === "function") atualizarDashboard();
-    </script>
+    <script src="/ProjetoDeGestao/JS/index.js" defer></script>
 </body>
 
 </html>

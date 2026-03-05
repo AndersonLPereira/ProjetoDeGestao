@@ -2,19 +2,18 @@
 <html lang="pt-BR">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Backup - Nexus Flores</title>
-  <link rel="stylesheet" href="/ProjetoDeGestao/Css/style.css">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/ProjetoDeGestao/Css/style.css" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
 </head>
 
 <body>
-
   <div class="overlay" onclick="toggleMenu()"></div>
 
   <div class="mobile-header">
-    <button onclick="toggleMenu()"><i class="fas fa-bars"></i></button>
+    <button type="button" onclick="toggleMenu()"><i class="fas fa-bars"></i></button>
     <h3>Nexus Flores Studio</h3>
     <div style="width: 30px;"></div>
   </div>
@@ -22,14 +21,13 @@
   <div class="app-container">
     <aside class="sidebar" id="sidebar">
       <div class="logo-area">
-        <img src="/ProjetoDeGestao/img/Logo LB impressões 3D.png" alt="Logo LB" id="app-logo">
+        <img src="/ProjetoDeGestao/img/Logo LB impressões 3D.png" alt="Logo LB" id="app-logo" />
         <h2>LB impressões 3D</h2>
-        <button class="close-menu-btn" onclick="toggleMenu()"><i class="fas fa-times"></i></button>
+        <button class="close-menu-btn" type="button" onclick="toggleMenu()"><i class="fas fa-times"></i></button>
       </div>
 
       <nav>
-        <a href="/ProjetoDeGestao/Telas/dashboard.html" class="nav-link active"><i class="fas fa-chart-line"></i>
-          Dashboard</a>
+        <a href="/ProjetoDeGestao/Telas/dashboard.html" class="nav-link"><i class="fas fa-chart-line"></i> Dashboard</a>
         <a href="/ProjetoDeGestao/Telas/orcamento.html" class="nav-link"><i class="fas fa-calculator"></i> Novo
           Orçamento</a>
         <a href="/ProjetoDeGestao/Telas/historico.html" class="nav-link"><i class="fas fa-list"></i> Histórico &
@@ -51,15 +49,15 @@
         <div class="split-view">
           <div class="form-container">
             <h3><i class="fas fa-download"></i> Exportar</h3>
-            <button class="btn-primary full-width" onclick="gerarBackup()">Gerar Código</button>
+            <button class="btn-primary full-width" type="button" onclick="gerarBackup()">Gerar Código</button>
             <textarea id="backup-output" readonly placeholder="Código..."></textarea>
-            <button class="btn-secondary btn-sm full-width" onclick="copiarBackup()">Copiar</button>
+            <button class="btn-secondary btn-sm full-width" type="button" onclick="copiarBackup()">Copiar</button>
           </div>
 
           <div class="form-container" style="border: 1px solid var(--accent);">
             <h3><i class="fas fa-upload"></i> Restaurar</h3>
             <textarea id="backup-input" placeholder="Cole aqui..."></textarea>
-            <button class="btn-primary full-width" style="background-color: var(--danger); color: white;"
+            <button class="btn-primary full-width" type="button" style="background-color: var(--danger); color: white;"
               onclick="restaurarBackup()">Restaurar</button>
           </div>
         </div>
@@ -67,7 +65,7 @@
     </main>
   </div>
 
-  <script src="/ProjetoDeGestao/JS/index.js"></script>
+  <script src="/ProjetoDeGestao/JS/index.js" defer></script>
 </body>
 
 </html>
