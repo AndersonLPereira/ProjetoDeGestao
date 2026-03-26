@@ -260,6 +260,7 @@ header h1{
 .row{
   display:flex;
   gap:20px;
+  margin: 10px;
 }
 
 .input-group{
