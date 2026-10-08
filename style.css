@@ -669,6 +669,7 @@ td.acoes{ white-space:nowrap; text-align:right; }
 .btn-cancel:hover,
 .btn-delete:hover{ background:var(--danger-soft); color:var(--danger); border-color:var(--danger); }
 .btn-personal:hover{ background:var(--info-soft); color:var(--info); border-color:var(--info); }
+.btn-edit:hover{ background:var(--primary-soft); color:var(--primary); border-color:var(--primary); }
 .btn-quote{ color:var(--primary); border-color:rgba(255,122,26,.4); }
 .btn-quote:hover{ background:var(--primary-soft); color:var(--primary-strong); border-color:var(--primary); }
 
@@ -814,4 +815,18 @@ body.login-page{
 
 @media (max-width:340px){
   .cards-grid{ grid-template-columns:1fr; }
+}
+
+/* ===== EDIÇÃO DE CADASTROS ===== */
+.form-acoes{ display:flex; gap:10px; margin-top:8px; }
+.form-acoes .btn-primary{ flex:1; }
+.form-acoes .btn-secondary{ margin-top:0; }
+.so-edicao{ display:none !important; }
+.editando .so-edicao{ display:block !important; }
+.editando .form-acoes .so-edicao{ display:inline-flex !important; }
+.form-container.editando{ border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-soft), var(--shadow); }
+.form-container.editando > h3{ color:var(--primary); }
+tbody tr.linha-editando{ background:var(--primary-soft); }
+@media (max-width:768px){
+  .form-acoes{ flex-direction:column; }
 }

@@ -58,8 +58,8 @@
           </div>
         </header>
 
-        <div class="form-container">
-          <h3><i class="fas fa-plus-circle"></i> Cadastrar rolo</h3>
+        <div class="form-container" id="form-filamento">
+          <h3 id="fil-form-titulo"><i class="fas fa-plus-circle"></i> Cadastrar rolo</h3>
           <div class="row">
             <div class="input-group">
               <label for="fil-marca">Marca</label>
@@ -92,9 +92,16 @@
               <label for="fil-peso">Peso do rolo (g)</label>
               <input type="number" id="fil-peso" value="1000" min="1" />
             </div>
+            <div class="input-group so-edicao">
+              <label for="fil-estoque">Estoque atual (g)</label>
+              <input type="number" id="fil-estoque" min="0" />
+            </div>
           </div>
 
-          <button class="btn-primary full-width" type="button" onclick="salvarFilamento()"><i class="fas fa-plus"></i> Cadastrar filamento</button>
+          <div class="form-acoes">
+            <button class="btn-primary" type="button" id="fil-btn-salvar" onclick="salvarFilamento()"><i class="fas fa-plus"></i> Cadastrar filamento</button>
+            <button class="btn-secondary so-edicao" type="button" onclick="cancelarEdicaoFilamento()"><i class="fas fa-xmark"></i> Cancelar edição</button>
+          </div>
         </div>
 
         <div class="table-responsive">

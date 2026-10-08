@@ -249,47 +249,89 @@ function deletarMaquina(index) {
 // =====================
 // FILAMENTOS
 // =====================
+// id do filamento sendo editado (null = cadastrando um novo)
+let filamentoEditandoId = null;
+
 function salvarFilamento() {
     reloadFromStorage();
 
-    const marcaEl = document.getElementById('fil-marca');
-    const corEl = document.getElementById('fil-cor');
-    const tipoEl = document.getElementById('fil-tipo');
-    const precoEl = document.getElementById('fil-preco');
-    const pesoEl = document.getElementById('fil-peso');
+    const campo = id => document.getElementById(id);
+    if (!campo('fil-marca') || !campo('fil-preco')) return;
 
-    if (!marcaEl || !precoEl) return;
-
-    const marca = (marcaEl.value || '').trim();
-    const cor = corEl ? (corEl.value || '').trim() : '';
-    const tipo = tipoEl ? (tipoEl.value || '').trim() : '';
-    const preco = parseFloat(precoEl.value);
-    const peso = pesoEl ? parseFloat(pesoEl.value) : 1000;
+    const marca = campo('fil-marca').value.trim();
+    const cor = campo('fil-cor').value.trim();
+    const tipo = campo('fil-tipo').value.trim();
+    const preco = parseFloat(campo('fil-preco').value);
+    const pesoTotal = parseFloat(campo('fil-peso').value) || 1000;
 
     if (!marca || Number.isNaN(preco)) return avisar("Preencha a marca e o preço do rolo.", "erro");
 
-    const pesoFinal = peso || 1000;
-    const custoPorGrama = preco / pesoFinal;
+    const dados = { marca, cor, tipo, preco, pesoTotal, custoPorGrama: preco / pesoTotal };
 
-    const filamento = {
-        id: Date.now(),
-        marca, cor, tipo, preco,
-        pesoTotal: pesoFinal,
-        estoqueAtual: pesoFinal,
-        custoPorGrama
-    };
+    if (filamentoEditandoId !== null) {
+        const fil = filamentos.find(f => String(f.id) === String(filamentoEditandoId));
+        if (!fil) {
+            cancelarEdicaoFilamento();
+            return avisar("Esse filamento não existe mais.", "erro");
+        }
+        const estoque = parseFloat(campo('fil-estoque').value);
+        // Mantém o id: orçamentos antigos apontam para ele
+        Object.assign(fil, dados, { estoqueAtual: Number.isNaN(estoque) ? fil.estoqueAtual : Math.max(0, estoque) });
+        salvarDados(DB_KEY_FILAMENTOS, filamentos);
+        cancelarEdicaoFilamento();
+        renderizarFilamentos();
+        return avisar("Filamento atualizado!");
+    }
 
-    filamentos.push(filamento);
+    filamentos.push({ id: Date.now(), ...dados, estoqueAtual: pesoTotal });
     salvarDados(DB_KEY_FILAMENTOS, filamentos);
-
-    marcaEl.value = '';
-    if (corEl) corEl.value = '';
-    if (tipoEl) tipoEl.value = '';
-    if (precoEl) precoEl.value = '';
-    if (pesoEl) pesoEl.value = '1000';
-
+    limparFormFilamento();
     renderizarFilamentos();
     avisar("Filamento cadastrado!");
+}
+
+function limparFormFilamento() {
+    ['fil-marca', 'fil-cor', 'fil-tipo', 'fil-preco', 'fil-estoque'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    const peso = document.getElementById('fil-peso');
+    if (peso) peso.value = '1000';
+}
+
+function editarFilamento(index) {
+    reloadFromStorage();
+    const fil = filamentos[index];
+    if (!fil) return;
+
+    filamentoEditandoId = fil.id;
+    const valores = {
+        'fil-marca': fil.marca, 'fil-cor': fil.cor, 'fil-tipo': fil.tipo, 'fil-preco': fil.preco,
+        'fil-peso': fil.pesoTotal || 1000, 'fil-estoque': Math.round(Number(fil.estoqueAtual || 0))
+    };
+    Object.entries(valores).forEach(([id, valor]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = valor ?? '';
+    });
+
+    const form = document.getElementById('form-filamento');
+    form.classList.add('editando');
+    document.getElementById('fil-form-titulo').innerHTML = `<i class="fas fa-pen"></i> Editando: ${esc([fil.tipo, fil.cor].filter(Boolean).join(' ') || fil.marca)}`;
+    document.getElementById('fil-btn-salvar').innerHTML = '<i class="fas fa-check"></i> Salvar alterações';
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('fil-marca').focus({ preventScroll: true });
+    renderizarFilamentos();
+}
+
+function cancelarEdicaoFilamento() {
+    filamentoEditandoId = null;
+    limparFormFilamento();
+    const form = document.getElementById('form-filamento');
+    if (!form) return;
+    form.classList.remove('editando');
+    document.getElementById('fil-form-titulo').innerHTML = '<i class="fas fa-plus-circle"></i> Cadastrar rolo';
+    document.getElementById('fil-btn-salvar').innerHTML = '<i class="fas fa-plus"></i> Cadastrar filamento';
+    renderizarFilamentos();
 }
 
 function renderizarFilamentos() {
@@ -307,7 +349,7 @@ function renderizarFilamentos() {
         const nivel = nivelEstoque(f);
         const custoGrama = Number(f.custoPorGrama || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 3 });
         return `
-      <tr>
+      <tr class="${String(f.id) === String(filamentoEditandoId) ? 'linha-editando' : ''}">
         <td>
           <div class="fil-nome">
             <span class="swatch" style="background: ${corDoFilamento(f.cor)};"></span>
@@ -324,6 +366,7 @@ function renderizarFilamentos() {
         </td>
         <td class="num">${custoGrama}<small>/g</small></td>
         <td class="acoes">
+          <button class="action-btn btn-edit" type="button" title="Editar" onclick="editarFilamento(${index})"><i class="fas fa-pen"></i></button>
           <button class="action-btn btn-delete" type="button" title="Excluir" onclick="deletarFilamento(${index})"><i class="fas fa-trash-can"></i></button>
         </td>
       </tr>`;
@@ -334,6 +377,7 @@ function deletarFilamento(index) {
     reloadFromStorage();
 
     if (confirm("Excluir este filamento?")) {
+        if (String(filamentos[index]?.id) === String(filamentoEditandoId)) cancelarEdicaoFilamento();
         filamentos.splice(index, 1);
         salvarDados(DB_KEY_FILAMENTOS, filamentos);
         renderizarFilamentos();
