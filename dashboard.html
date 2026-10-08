@@ -2,90 +2,112 @@
 <html lang="pt-BR">
 
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Dashboard - LB impressões 3D</title>
-    <link rel="stylesheet" href="style.css" />
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#11141b" />
+  <title>Painel - LB impressões 3D</title>
+  <link rel="icon" type="image/png" href="Logo LB impressões 3D.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
-    <div class="overlay" onclick="toggleMenu()"></div>
+  <div class="overlay" onclick="toggleMenu()"></div>
 
-    <div class="mobile-header">
-        <button type="button" onclick="toggleMenu()"><i class="fas fa-bars"></i></button>
-        <h3>LB impressões 3D</h3>
-        <div style="width: 30px;"></div>
-    </div>
+  <div class="mobile-header">
+    <button type="button" onclick="toggleMenu()" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
+    <span class="mobile-brand"><img src="Logo LB impressões 3D.png" alt="" /> LB impressões 3D</span>
+    <span style="width: 40px;"></span>
+  </div>
 
-    <div class="app-container">
-        <aside class="sidebar" id="sidebar">
-            <div class="logo-area">
-                <img src="Logo LB impressões 3D.png" alt="Logo LB" id="app-logo" />
-                <h2>LB impressões 3D</h2>
-                <button class="close-menu-btn" type="button" onclick="toggleMenu()"><i
-                        class="fas fa-times"></i></button>
+  <div class="app-container">
+    <aside class="sidebar" id="sidebar">
+      <div class="logo-area">
+        <img src="Logo LB impressões 3D.png" alt="Logo LB impressões 3D" id="app-logo" />
+        <div class="brand-text">
+          <strong>LB impressões 3D</strong>
+          <span>Gestão de impressão</span>
+        </div>
+        <button class="close-menu-btn" type="button" onclick="toggleMenu()" aria-label="Fechar menu"><i class="fas fa-times"></i></button>
+      </div>
+
+      <nav>
+        <span class="nav-section">Operação</span>
+        <a href="dashboard.html" class="nav-link"><i class="fas fa-chart-pie"></i> Painel</a>
+        <a href="orcamento.html" class="nav-link"><i class="fas fa-calculator"></i> Novo orçamento</a>
+        <a href="historico.html" class="nav-link"><i class="fas fa-receipt"></i> Orçamentos e vendas</a>
+
+        <span class="nav-section">Cadastros</span>
+        <a href="filamentos.html" class="nav-link"><i class="fas fa-compact-disc"></i> Filamentos</a>
+        <a href="maquinas.html" class="nav-link"><i class="fas fa-print"></i> Impressoras</a>
+
+        <span class="nav-section">Sistema</span>
+        <a href="backup.html" class="nav-link"><i class="fas fa-sliders-h"></i> Empresa e backup</a>
+      </nav>
+    </aside>
+
+    <main class="content">
+      <section id="dashboard" class="section active-section">
+        <header class="page-header">
+          <div>
+            <h1><i class="fas fa-chart-pie"></i> Painel</h1>
+            <p>Resumo das vendas aprovadas no mês</p>
+          </div>
+          <div class="filter-box">
+            <label for="dash-filtro-mes"><i class="far fa-calendar"></i> Mês</label>
+            <input type="month" id="dash-filtro-mes" onchange="atualizarDashboard()" />
+          </div>
+        </header>
+
+        <div class="cards-grid">
+          <div class="card">
+            <div class="card-icon"><i class="fas fa-coins"></i></div>
+            <h3>Faturamento</h3>
+            <p class="big-number" id="dash-faturamento">R$ 0,00</p>
+          </div>
+          <div class="card kpi-success">
+            <div class="card-icon"><i class="fas fa-arrow-trend-up"></i></div>
+            <h3>Lucro líquido</h3>
+            <p class="big-number" id="dash-lucro">R$ 0,00</p>
+          </div>
+          <div class="card kpi-info">
+            <div class="card-icon"><i class="fas fa-layer-group"></i></div>
+            <h3>Custo de produção</h3>
+            <p class="big-number" id="dash-custo">R$ 0,00</p>
+          </div>
+          <div class="card kpi-warning">
+            <div class="card-icon"><i class="fas fa-cube"></i></div>
+            <h3>Vendas aprovadas</h3>
+            <p class="big-number" id="dash-vendas">0</p>
+          </div>
+        </div>
+
+        <div class="dash-grid">
+          <div class="recent-list">
+            <div class="panel-head">
+              <h3 class="panel-title"><i class="fas fa-clock-rotate-left"></i> Últimos orçamentos</h3>
+              <a href="historico.html">Ver todos <i class="fas fa-arrow-right"></i></a>
             </div>
+            <ul class="activity-list" id="dash-history-list"></ul>
+          </div>
 
-            <nav>
-                <a href="dashboard.html" class="nav-link"><i class="fas fa-chart-line"></i>
-                    Dashboard</a>
-                <a href="orcamento.html" class="nav-link"><i class="fas fa-calculator"></i> Novo
-                    Orçamento</a>
-                <a href="historico.html" class="nav-link"><i class="fas fa-list"></i> Histórico &
-                    Vendas</a>
-                <a href="filamentos.html" class="nav-link"><i class="fas fa-circle-notch"></i>
-                    Filamentos</a>
-                <a href="maquinas.html" class="nav-link"><i class="fas fa-print"></i>
-                    Máquinas</a>
-                <a href="backup.html" class="nav-link nav-backup"><i class="fas fa-database"></i>
-                    Backup & Dados</a>
-            </nav>
-        </aside>
+          <div class="panel">
+            <div class="panel-head">
+              <h3 class="panel-title"><i class="fas fa-compact-disc"></i> Estoque de filamento</h3>
+              <a href="filamentos.html">Gerenciar <i class="fas fa-arrow-right"></i></a>
+            </div>
+            <ul class="activity-list" id="dash-estoque"></ul>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
 
-        <main class="content">
-            <section id="dashboard" class="section active-section">
-                <header class="header-flex">
-                    <div>
-                        <h1>Visão Geral</h1>
-                        <p>Bem-vindo ao sistema Nexus Flores</p>
-                    </div>
-
-                    <div class="filter-box">
-                        <label for="dash-filtro-mes">Mês:</label>
-                        <input type="month" id="dash-filtro-mes" onchange="atualizarDashboard()" />
-                    </div>
-                </header>
-
-                <div class="cards-grid">
-                    <div class="card">
-                        <h3>Faturamento (Mês)</h3>
-                        <p class="big-number" id="dash-faturamento">R$ 0,00</p>
-                    </div>
-                    <div class="card">
-                        <h3>Lucro Líquido (Mês)</h3>
-                        <p class="big-number highlight" id="dash-lucro">R$ 0,00</p>
-                    </div>
-                    <div class="card">
-                        <h3>Custo Total (Mês)</h3>
-                        <p class="big-number" id="dash-custo">R$ 0,00</p>
-                    </div>
-                    <div class="card">
-                        <h3>Vendas Aprovadas</h3>
-                        <p class="big-number" id="dash-vendas">0</p>
-                    </div>
-                </div>
-
-                <div class="recent-list">
-                    <h3>Últimas Atividades (Geral)</h3>
-                    <ul id="dash-history-list"></ul>
-                </div>
-            </section>
-        </main>
-    </div>
-
-    <script src="script.js" defer></script>
-    <script type="module" src="nuvem.js"></script>
+  <script src="script.js" defer></script>
+  <script type="module" src="nuvem.js"></script>
 </body>
 
 </html>

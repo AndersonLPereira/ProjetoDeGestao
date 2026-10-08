@@ -2,73 +2,83 @@
 <html lang="pt-BR">
 
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Histórico - LB impressões 3D</title>
-    <link rel="stylesheet" href="style.css" />
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#11141b" />
+  <title>Orçamentos e vendas - LB impressões 3D</title>
+  <link rel="icon" type="image/png" href="Logo LB impressões 3D.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
-    <div class="overlay" onclick="toggleMenu()"></div>
+  <div class="overlay" onclick="toggleMenu()"></div>
 
-    <div class="mobile-header">
-        <button type="button" onclick="toggleMenu()"><i class="fas fa-bars"></i></button>
-        <h3>LB impressões 3D</h3>
-        <div style="width: 30px;"></div>
-    </div>
+  <div class="mobile-header">
+    <button type="button" onclick="toggleMenu()" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
+    <span class="mobile-brand"><img src="Logo LB impressões 3D.png" alt="" /> LB impressões 3D</span>
+    <span style="width: 40px;"></span>
+  </div>
 
-    <div class="app-container">
-        <aside class="sidebar" id="sidebar">
-            <div class="logo-area">
-                <img src="Logo LB impressões 3D.png" alt="Logo LB" id="app-logo" />
-                <h2>LB impressões 3D</h2>
-                <button class="close-menu-btn" type="button" onclick="toggleMenu()"><i
-                        class="fas fa-times"></i></button>
-            </div>
+  <div class="app-container">
+    <aside class="sidebar" id="sidebar">
+      <div class="logo-area">
+        <img src="Logo LB impressões 3D.png" alt="Logo LB impressões 3D" id="app-logo" />
+        <div class="brand-text">
+          <strong>LB impressões 3D</strong>
+          <span>Gestão de impressão</span>
+        </div>
+        <button class="close-menu-btn" type="button" onclick="toggleMenu()" aria-label="Fechar menu"><i class="fas fa-times"></i></button>
+      </div>
 
-            <nav>
-                <a href="dashboard.html" class="nav-link"><i class="fas fa-chart-line"></i>
-                    Dashboard</a>
-                <a href="orcamento.html" class="nav-link"><i class="fas fa-calculator"></i> Novo
-                    Orçamento</a>
-                <a href="historico.html" class="nav-link"><i class="fas fa-list"></i> Histórico &
-                    Vendas</a>
-                <a href="filamentos.html" class="nav-link"><i class="fas fa-circle-notch"></i>
-                    Filamentos</a>
-                <a href="maquinas.html" class="nav-link"><i class="fas fa-print"></i>
-                    Máquinas</a>
-                <a href="backup.html" class="nav-link nav-backup"><i class="fas fa-database"></i>
-                    Backup & Dados</a>
-            </nav>
-        </aside>
+      <nav>
+        <span class="nav-section">Operação</span>
+        <a href="dashboard.html" class="nav-link"><i class="fas fa-chart-pie"></i> Painel</a>
+        <a href="orcamento.html" class="nav-link"><i class="fas fa-calculator"></i> Novo orçamento</a>
+        <a href="historico.html" class="nav-link"><i class="fas fa-receipt"></i> Orçamentos e vendas</a>
 
-        <main class="content">
-            <section id="historico" class="section active-section">
-                <header>
-                    <h1>Histórico</h1>
-                </header>
+        <span class="nav-section">Cadastros</span>
+        <a href="filamentos.html" class="nav-link"><i class="fas fa-compact-disc"></i> Filamentos</a>
+        <a href="maquinas.html" class="nav-link"><i class="fas fa-print"></i> Impressoras</a>
 
-                <div class="table-responsive">
-                    <table id="tabela-historico">
-                        <thead>
-                            <tr>
-                                <th>Data</th>
-                                <th>Cliente/Prod</th>
-                                <th>Valores</th>
-                                <th>Status</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </section>
-        </main>
-    </div>
+        <span class="nav-section">Sistema</span>
+        <a href="backup.html" class="nav-link"><i class="fas fa-sliders-h"></i> Empresa e backup</a>
+      </nav>
+    </aside>
 
-    <script src="script.js" defer></script>
-    <script type="module" src="nuvem.js"></script>
+    <main class="content">
+      <section id="historico" class="section active-section">
+        <header class="page-header">
+          <div>
+            <h1><i class="fas fa-receipt"></i> Orçamentos e vendas</h1>
+            <p>Aprove vendas, dê baixa no estoque e envie o orçamento ao cliente</p>
+          </div>
+          <a class="btn-primary" href="orcamento.html"><i class="fas fa-plus"></i> Novo orçamento</a>
+        </header>
+
+        <div class="table-responsive">
+          <table id="tabela-historico">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Produto / cliente</th>
+                <th>Valores</th>
+                <th>Status</th>
+                <th style="text-align: right;">Ações</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="script.js" defer></script>
+  <script type="module" src="nuvem.js"></script>
 </body>
 
 </html>

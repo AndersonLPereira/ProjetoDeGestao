@@ -28,6 +28,80 @@ function esc(valor) {
     return String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// Formata valores em reais: 1234.5 -> "R$ 1.234,50"
+function brl(valor) {
+    return Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+// Aviso rápido no canto da tela (substitui o alert)
+function avisar(mensagem, tipo = 'ok') {
+    let area = document.querySelector('.toast-area');
+    if (!area) {
+        area = document.createElement('div');
+        area.className = 'toast-area';
+        area.setAttribute('role', 'status');
+        document.body.appendChild(area);
+    }
+    const toast = document.createElement('div');
+    toast.className = tipo === 'erro' ? 'toast erro' : 'toast';
+    toast.innerHTML = `<i class="fas ${tipo === 'erro' ? 'fa-circle-exclamation' : 'fa-circle-check'}"></i><span></span>`;
+    toast.querySelector('span').textContent = mensagem;
+    area.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add('saindo');
+        setTimeout(() => toast.remove(), 300);
+    }, 3200);
+}
+
+// Aviso para mostrar na próxima página (quando a ação termina em redirecionamento)
+function avisarDepois(mensagem) {
+    sessionStorage.setItem('nexus_aviso', mensagem);
+}
+
+function mostrarAvisoPendente() {
+    const mensagem = sessionStorage.getItem('nexus_aviso');
+    if (!mensagem) return;
+    sessionStorage.removeItem('nexus_aviso');
+    avisar(mensagem);
+}
+
+// Cor aproximada do rolo a partir do nome digitado (para a amostra na tabela)
+const CORES_FILAMENTO = {
+    'preto': '#1d1d1f', 'branco': '#f4f4f4', 'cinza': '#8e8e93', 'prata': '#c0c4cc',
+    'vermelho': '#e0352b', 'vinho': '#7b1e2b', 'azul marinho': '#1f3a6d', 'azul claro': '#6fb6ff',
+    'azul': '#2f6fe4', 'ciano': '#25c4d8', 'verde limao': '#a6e22e', 'verde': '#2fa84f',
+    'amarelo': '#f7d038', 'laranja': '#ff7a1a', 'rosa': '#f48fb1', 'roxo': '#7e57c2',
+    'lilas': '#b39ddb', 'marrom': '#7b4a2d', 'bege': '#e3cfa8', 'dourado': '#d4a537',
+    'ouro': '#d4a537', 'bronze': '#b0723b', 'cobre': '#b87333', 'natural': '#efe6d2',
+    'transparente': 'rgba(255,255,255,.12)'
+};
+
+function semAcento(texto) {
+    return String(texto || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+}
+
+function corDoFilamento(nome) {
+    const n = semAcento(nome);
+    const chave = Object.keys(CORES_FILAMENTO)
+        .sort((a, b) => b.length - a.length)
+        .find(c => n.includes(c));
+    return chave ? CORES_FILAMENTO[chave] : '#5b6275';
+}
+
+// Porcentagem restante do rolo e o nível (para cores da barra de estoque)
+function nivelEstoque(f) {
+    const total = Number(f.pesoTotal || 1000);
+    const atual = Math.max(0, Number(f.estoqueAtual || 0));
+    const pct = Math.min(100, (atual / total) * 100);
+    return { atual, total, pct, classe: pct <= 10 ? 'critico' : pct <= 25 ? 'baixo' : '' };
+}
+
+function linhaVazia(colunas, icone, texto) {
+    return `<tr class="empty-row"><td colspan="${colunas}"><i class="fas ${icone}"></i>${texto}</td></tr>`;
+}
+
+const CLASSES_STATUS = { Pendente: 'status-pendente', Aprovado: 'status-aprovado', Cancelado: 'status-cancelado', Pessoal: 'status-pessoal' };
+
 let filamentos = [];
 let maquinas = [];
 let orcamentos = [];
@@ -107,7 +181,7 @@ function salvarMaquina() {
     const kwh = kwhEl ? parseFloat(kwhEl.value) : 0;
     const vidaUtil = vidaEl ? (parseFloat(vidaEl.value) || 3000) : 3000;
 
-    if (!nome || Number.isNaN(valor)) return alert("Preencha os dados corretamente.");
+    if (!nome || Number.isNaN(valor)) return avisar("Preencha o nome e o valor da impressora.", "erro");
 
     const maquina = { id: Date.now(), nome, valor, potencia: potencia || 0, kwh: kwh || 0, vidaUtil };
     maquinas.push(maquina);
@@ -120,7 +194,7 @@ function salvarMaquina() {
     if (vidaEl) vidaEl.value = '3000';
 
     renderizarMaquinas();
-    alert("Máquina cadastrada!");
+    avisar("Impressora cadastrada!");
 
     if (document.getElementById('orc-maquina')) carregarOpcoesOrcamento();
 }
@@ -131,29 +205,33 @@ function renderizarMaquinas() {
     const tbody = document.querySelector('#tabela-maquinas tbody');
     if (!tbody) return;
 
-    tbody.innerHTML = '';
-    maquinas.forEach((m, index) => {
-        const vida = m.vidaUtil || 3000;
-        tbody.innerHTML += `
+    if (!maquinas.length) {
+        tbody.innerHTML = linhaVazia(6, 'fa-print', 'Nenhuma impressora cadastrada ainda.');
+        return;
+    }
+
+    tbody.innerHTML = maquinas.map((m, index) => {
+        const vida = Number(m.vidaUtil || 3000);
+        // Desgaste + energia por hora de impressão (mesma conta da calculadora)
+        const custoHora = Number(m.valor || 0) / vida + (Number(m.potencia || 0) / 1000) * Number(m.kwh || 0);
+        return `
       <tr>
-        <td>${m.nome}</td>
-        <td>R$ ${Number(m.valor || 0).toFixed(2)}</td>
-        <td>${Number(m.potencia || 0)}W</td>
-        <td>${vida}h</td>
-        <td>
-          <button class="action-btn btn-delete" type="button" onclick="deletarMaquina(${index})">
-            <i class="fas fa-trash"></i>
-          </button>
+        <td><div class="fil-nome"><span class="card-icon" style="margin: 0; width: 34px; height: 34px;"><i class="fas fa-print"></i></span><strong>${esc(m.nome)}</strong></div></td>
+        <td class="num">${brl(m.valor)}</td>
+        <td class="num">${Number(m.potencia || 0)} W</td>
+        <td class="num">${vida.toLocaleString('pt-BR')} h</td>
+        <td class="num">${brl(custoHora)}<small>/h</small></td>
+        <td class="acoes">
+          <button class="action-btn btn-delete" type="button" title="Excluir" onclick="deletarMaquina(${index})"><i class="fas fa-trash-can"></i></button>
         </td>
-      </tr>
-    `;
-    });
+      </tr>`;
+    }).join('');
 }
 
 function deletarMaquina(index) {
     reloadFromStorage();
 
-    if (confirm("Excluir máquina?")) {
+    if (confirm("Excluir esta impressora?")) {
         maquinas.splice(index, 1);
         salvarDados(DB_KEY_MAQUINAS, maquinas);
         renderizarMaquinas();
@@ -181,7 +259,7 @@ function salvarFilamento() {
     const preco = parseFloat(precoEl.value);
     const peso = pesoEl ? parseFloat(pesoEl.value) : 1000;
 
-    if (!marca || Number.isNaN(preco)) return alert("Preencha os dados corretamente.");
+    if (!marca || Number.isNaN(preco)) return avisar("Preencha a marca e o preço do rolo.", "erro");
 
     const pesoFinal = peso || 1000;
     const custoPorGrama = preco / pesoFinal;
@@ -204,7 +282,7 @@ function salvarFilamento() {
     if (pesoEl) pesoEl.value = '1000';
 
     renderizarFilamentos();
-    alert("Filamento cadastrado!");
+    avisar("Filamento cadastrado!");
 }
 
 function renderizarFilamentos() {
@@ -213,28 +291,42 @@ function renderizarFilamentos() {
     const tbody = document.querySelector('#tabela-filamentos tbody');
     if (!tbody) return;
 
-    tbody.innerHTML = '';
-    filamentos.forEach((f, index) => {
-        tbody.innerHTML += `
+    if (!filamentos.length) {
+        tbody.innerHTML = linhaVazia(5, 'fa-compact-disc', 'Nenhum filamento cadastrado ainda.');
+        return;
+    }
+
+    tbody.innerHTML = filamentos.map((f, index) => {
+        const nivel = nivelEstoque(f);
+        const custoGrama = Number(f.custoPorGrama || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 3 });
+        return `
       <tr>
-        <td>${f.marca} - ${f.cor}</td>
-        <td>R$ ${Number(f.preco || 0).toFixed(2)}</td>
-        <td>${Number(f.estoqueAtual || 0).toFixed(1)}g</td>
-        <td>R$ ${Number(f.custoPorGrama || 0).toFixed(4)}</td>
         <td>
-          <button class="action-btn btn-delete" type="button" onclick="deletarFilamento(${index})">
-            <i class="fas fa-trash"></i>
-          </button>
+          <div class="fil-nome">
+            <span class="swatch" style="background: ${corDoFilamento(f.cor)};"></span>
+            <div>
+              <strong>${esc(f.cor || 'Sem cor')}</strong>${f.tipo ? `<span class="fil-tipo">${esc(f.tipo)}</span>` : ''}<br>
+              <small>${esc(f.marca)}</small>
+            </div>
+          </div>
         </td>
-      </tr>
-    `;
-    });
+        <td class="num">${brl(f.preco)}</td>
+        <td class="stock ${nivel.classe}">
+          <span class="num">${nivel.atual.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} g</span> <small>de ${nivel.total.toLocaleString('pt-BR')} g</small>
+          <div class="stock-bar"><span style="width: ${nivel.pct}%;"></span></div>
+        </td>
+        <td class="num">${custoGrama}<small>/g</small></td>
+        <td class="acoes">
+          <button class="action-btn btn-delete" type="button" title="Excluir" onclick="deletarFilamento(${index})"><i class="fas fa-trash-can"></i></button>
+        </td>
+      </tr>`;
+    }).join('');
 }
 
 function deletarFilamento(index) {
     reloadFromStorage();
 
-    if (confirm("Excluir filamento?")) {
+    if (confirm("Excluir este filamento?")) {
         filamentos.splice(index, 1);
         salvarDados(DB_KEY_FILAMENTOS, filamentos);
         renderizarFilamentos();
@@ -258,10 +350,10 @@ function carregarOpcoesOrcamento() {
     if (!selectMaq) return;
 
     const valorAtual = selectMaq.value;
-    selectMaq.innerHTML = '<option value="">Selecione...</option>';
+    selectMaq.innerHTML = `<option value="">${maquinas.length ? 'Selecione a impressora' : 'Cadastre uma impressora primeiro'}</option>`;
 
     maquinas.forEach(m => {
-        selectMaq.innerHTML += `<option value="${m.id}">${m.nome}</option>`;
+        selectMaq.innerHTML += `<option value="${m.id}">${esc(m.nome)}</option>`;
     });
 
     if (valorAtual) selectMaq.value = valorAtual;
@@ -278,15 +370,15 @@ function adicionarLinhaFilamento(reset = false) {
     const div = document.createElement('div');
     div.className = 'filament-row';
 
-    let options = '<option value="">Escolha o Filamento</option>';
+    let options = '<option value="">Escolha o filamento</option>';
     filamentos.forEach(f => {
-        options += `<option value="${f.id}">${f.marca} ${f.cor} (R$${Number(f.custoPorGrama || 0).toFixed(3)}/g)</option>`;
+        options += `<option value="${f.id}">${esc([f.tipo, f.cor, f.marca].filter(Boolean).join(' · '))} (${nivelEstoque(f).atual.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} g)</option>`;
     });
 
     div.innerHTML = `
     <select class="orc-filamento-select" onchange="calcularEmTempoReal()">${options}</select>
-    <input type="number" class="orc-filamento-peso" placeholder="Peso (g)" oninput="calcularEmTempoReal()">
-    <button class="btn-delete" type="button" onclick="this.parentElement.remove(); calcularEmTempoReal()">X</button>
+    <input type="number" class="orc-filamento-peso" placeholder="Peso (g)" min="0" oninput="calcularEmTempoReal()">
+    <button class="btn-delete" type="button" title="Remover" onclick="this.parentElement.remove(); calcularEmTempoReal()"><i class="fas fa-trash-can"></i></button>
   `;
     container.appendChild(div);
 }
@@ -359,14 +451,14 @@ function calcularEmTempoReal() {
         if (el) el.innerText = txt;
     };
 
-    setTxt('res-filamento', `R$ ${custoFilamentoTotal.toFixed(2)}`);
-    setTxt('res-energia', `R$ ${custoEnergia.toFixed(2)}`);
-    setTxt('res-desgaste', `R$ ${custoDesgaste.toFixed(2)}`);
-    setTxt('res-extras', `R$ ${extras.toFixed(2)}`);
-    setTxt('res-erro', `R$ ${valorErro.toFixed(2)}`);
-    setTxt('res-total-custo', `R$ ${custoFinal.toFixed(2)}`);
-    setTxt('res-preco-final', `R$ ${precoVenda.toFixed(2)}`);
-    setTxt('res-lucro-final', `Lucro: R$ ${valorLucro.toFixed(2)}`);
+    setTxt('res-filamento', brl(custoFilamentoTotal));
+    setTxt('res-energia', brl(custoEnergia));
+    setTxt('res-desgaste', brl(custoDesgaste));
+    setTxt('res-extras', brl(extras));
+    setTxt('res-erro', brl(valorErro));
+    setTxt('res-total-custo', brl(custoFinal));
+    setTxt('res-preco-final', brl(precoVenda));
+    setTxt('res-lucro-final', `Lucro: ${brl(valorLucro)}`);
 
     orcamentoAtualCalculado = {
         custoTotal: custoFinal,
@@ -384,9 +476,9 @@ async function salvarOrcamento() {
     const categoria = document.getElementById('orc-categoria')?.value || '';
     const maquinaId = document.getElementById('orc-maquina')?.value;
 
-    if (!cliente || !produto) return alert("Preencha Cliente e Produto.");
-    if (!maquinaId) return alert("Selecione uma máquina.");
-    if (!orcamentoAtualCalculado) return alert("Erro no cálculo.");
+    if (!cliente || !produto) return avisar("Preencha o cliente e o produto.", "erro");
+    if (!maquinaId) return avisar("Selecione a impressora.", "erro");
+    if (!orcamentoAtualCalculado) return avisar("Erro no cálculo.", "erro");
 
     reloadFromStorage();
 
@@ -408,7 +500,7 @@ async function salvarOrcamento() {
 
     orcamentos.unshift(novoOrcamento);
     await salvarDados(DB_KEY_ORCAMENTOS, orcamentos);
-    alert("Salvo no Histórico!");
+    avisarDepois("Orçamento salvo!");
 
     if (document.getElementById('orc-cliente')) document.getElementById('orc-cliente').value = '';
     if (document.getElementById('orc-produto')) document.getElementById('orc-produto').value = '';
@@ -426,42 +518,36 @@ function renderizarHistorico() {
     const tbody = document.querySelector('#tabela-historico tbody');
     if (!tbody) return;
 
-    tbody.innerHTML = '';
+    if (!orcamentos.length) {
+        tbody.innerHTML = linhaVazia(5, 'fa-receipt', 'Nenhum orçamento ainda. Crie o primeiro em "Novo orçamento".');
+        return;
+    }
 
-    orcamentos.forEach((orc, index) => {
-        let badgeClass = '';
-        if (orc.status === 'Pendente') badgeClass = 'status-pendente';
-        if (orc.status === 'Aprovado') badgeClass = 'status-aprovado';
-        if (orc.status === 'Cancelado') badgeClass = 'status-cancelado';
-        if (orc.status === 'Pessoal') badgeClass = 'status-pessoal';
-
+    tbody.innerHTML = orcamentos.map((orc, index) => {
         let botoes = `
-        <a class="action-btn btn-quote" href="orcamento-cliente.html?id=${orc.id}" title="Orçamento para o cliente"><i class="fas fa-file-invoice"></i></a>
-      `;
+        <a class="action-btn btn-quote" href="orcamento-cliente.html?id=${orc.id}" title="Orçamento para o cliente"><i class="fas fa-file-invoice"></i></a>`;
         if (orc.status === 'Pendente') {
             botoes += `
-        <button class="action-btn btn-approve" type="button" onclick="mudarStatus(${index}, 'Aprovado')"><i class="fas fa-check"></i></button>
-        <button class="action-btn btn-personal" type="button" onclick="mudarStatus(${index}, 'Pessoal')"><i class="fas fa-user"></i></button>
-        <button class="action-btn btn-cancel" type="button" onclick="mudarStatus(${index}, 'Cancelado')"><i class="fas fa-times"></i></button>
-      `;
+        <button class="action-btn btn-approve" type="button" title="Aprovar venda (dá baixa no estoque)" onclick="mudarStatus(${index}, 'Aprovado')"><i class="fas fa-check"></i></button>
+        <button class="action-btn btn-personal" type="button" title="Uso pessoal (dá baixa no estoque)" onclick="mudarStatus(${index}, 'Pessoal')"><i class="fas fa-user"></i></button>
+        <button class="action-btn btn-cancel" type="button" title="Cancelar" onclick="mudarStatus(${index}, 'Cancelado')"><i class="fas fa-xmark"></i></button>`;
         }
 
-        tbody.innerHTML += `
+        return `
       <tr>
-        <td>${orc.data}</td>
+        <td class="num">${esc(orc.data)}</td>
         <td>
           <strong>${esc(orc.produto)}</strong><br>
           <small>${esc(orc.cliente)}</small>
         </td>
-        <td>
-          <small>Custo: R$${Number(orc.custoTotal || 0).toFixed(2)}</small><br>
-          <strong>Venda: R$${Number(orc.valorVenda || 0).toFixed(2)}</strong>
+        <td class="num">
+          <strong>${brl(orc.valorVenda)}</strong><br>
+          <small>Custo ${brl(orc.custoTotal)}</small>
         </td>
-        <td><span class="status-badge ${badgeClass}">${orc.status}</span></td>
-        <td>${botoes}</td>
-      </tr>
-    `;
-    });
+        <td><span class="status-badge ${CLASSES_STATUS[orc.status] || ''}">${esc(orc.status)}</span></td>
+        <td class="acoes">${botoes}</td>
+      </tr>`;
+    }).join('');
 }
 
 function mudarStatus(index, novoStatus) {
@@ -477,7 +563,7 @@ function mudarStatus(index, novoStatus) {
             const fil = filamentos.find(f => String(f.id) === String(item.id));
             if (!fil || Number(fil.estoqueAtual || 0) < Number(item.peso || 0)) {
                 estoqueOk = false;
-                alert(`Estoque insuficiente: ${item.nome}`);
+                avisar(`Estoque insuficiente: ${item.nome}`, "erro");
             }
         });
 
@@ -495,6 +581,9 @@ function mudarStatus(index, novoStatus) {
 
     orc.status = novoStatus;
     salvarDados(DB_KEY_ORCAMENTOS, orcamentos);
+
+    const MENSAGENS = { Aprovado: 'Venda aprovada! Estoque atualizado.', Pessoal: 'Marcado como uso pessoal. Estoque atualizado.', Cancelado: 'Orçamento cancelado.' };
+    avisar(MENSAGENS[novoStatus] || 'Status atualizado.');
 
     renderizarHistorico();
     atualizarDashboard();
@@ -536,23 +625,53 @@ function atualizarDashboard() {
         if (el) el.innerText = txt;
     };
 
-    setTxt('dash-faturamento', `R$ ${faturamento.toFixed(2)}`);
-    setTxt('dash-lucro', `R$ ${lucro.toFixed(2)}`);
-    setTxt('dash-custo', `R$ ${custo.toFixed(2)}`);
+    setTxt('dash-faturamento', brl(faturamento));
+    setTxt('dash-lucro', brl(lucro));
+    setTxt('dash-custo', brl(custo));
     setTxt('dash-vendas', String(qtdVendas));
 
     const lista = document.getElementById('dash-history-list');
-    if (!lista) return;
+    if (lista) {
+        lista.innerHTML = orcamentos.length
+            ? orcamentos.slice(0, 6).map(o => `
+          <li>
+            <div class="act-main">
+              <strong>${esc(o.produto)}</strong>
+              <small>${esc(o.cliente)} · ${esc(o.data)}</small>
+            </div>
+            <div class="act-side">
+              <div>${brl(o.valorVenda)}</div>
+              <span class="status-badge ${CLASSES_STATUS[o.status] || ''}">${esc(o.status)}</span>
+            </div>
+          </li>`).join('')
+            : '<li class="empty-msg">Nenhum orçamento ainda.</li>';
+    }
 
-    lista.innerHTML = '';
-    orcamentos.slice(0, 5).forEach(o => {
-        lista.innerHTML += `
-      <li style="padding: 10px; border-bottom: 1px solid rgba(47,125,255,.18); display: flex; justify-content: space-between;">
-        <span>${o.produto}</span>
-        <span class="${o.status === 'Aprovado' ? 'highlight' : ''}">${o.status}</span>
-      </li>
-    `;
-    });
+    // Rolos com menos estoque primeiro
+    const estoque = document.getElementById('dash-estoque');
+    if (estoque) {
+        const rolos = filamentos
+            .map(f => ({ f, nivel: nivelEstoque(f) }))
+            .sort((a, b) => a.nivel.pct - b.nivel.pct)
+            .slice(0, 6);
+
+        estoque.innerHTML = rolos.length
+            ? rolos.map(({ f, nivel }) => `
+          <li>
+            <div class="act-main fil-nome">
+              <span class="swatch" style="background: ${corDoFilamento(f.cor)};"></span>
+              <div style="min-width: 0;">
+                <strong>${esc([f.tipo, f.cor].filter(Boolean).join(' ') || f.marca)}</strong>
+                <small>${esc(f.marca)}</small>
+              </div>
+            </div>
+            <div class="act-side stock ${nivel.classe}" style="min-width: 110px;">
+              <div>${nivel.atual.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} g</div>
+              <div class="stock-bar"><span style="width: ${nivel.pct}%;"></span></div>
+            </div>
+          </li>`).join('')
+            : '<li class="empty-msg">Nenhum filamento cadastrado.</li>';
+    }
 }
 
 // =====================
@@ -586,16 +705,16 @@ async function copiarBackup() {
     if (!textarea) return;
 
     const text = textarea.value || '';
-    if (!text) return alert("Nada para copiar.");
+    if (!text) return avisar("Gere o código antes de copiar.", "erro");
 
     try {
         await navigator.clipboard.writeText(text);
-        alert("Copiado!");
+        avisar("Código copiado!");
     } catch {
         // fallback antigo
         textarea.select();
         document.execCommand('copy');
-        alert("Copiado!");
+        avisar("Código copiado!");
     }
 }
 
@@ -604,9 +723,9 @@ async function restaurarBackup() {
     if (!input) return;
 
     const codigo = (input.value || '').trim();
-    if (!codigo) return alert("Cole o código.");
+    if (!codigo) return avisar("Cole o código do backup.", "erro");
 
-    if (confirm("Substituir dados atuais?")) {
+    if (confirm("Isso vai substituir todos os dados atuais. Continuar?")) {
         try {
             const dados = JSON.parse(decodeBase64Utf8(codigo));
 
@@ -617,10 +736,10 @@ async function restaurarBackup() {
                 dados.empresa ? salvarDados(DB_KEY_EMPRESA, dados.empresa) : null
             ]);
 
-            alert("Restaurado!");
+            avisarDepois("Backup restaurado!");
             location.reload();
         } catch (e) {
-            alert("Código inválido.");
+            avisar("Código inválido.", "erro");
         }
     }
 }
@@ -646,7 +765,7 @@ function salvarEmpresa() {
     });
     empresa.validadeDias = parseInt(empresa.validadeDias, 10) || EMPRESA_PADRAO.validadeDias;
     salvarDados(DB_KEY_EMPRESA, empresa);
-    alert("Dados da empresa salvos!");
+    avisar("Dados da empresa salvos!");
 }
 
 // =====================
@@ -656,6 +775,7 @@ function salvarEmpresa() {
 function iniciarPagina() {
     reloadFromStorage();
     setActiveNavLink();
+    mostrarAvisoPendente();
 
     // Fecha menu no mobile ao clicar em qualquer link
     document.querySelectorAll('.sidebar nav a.nav-link').forEach(a => {

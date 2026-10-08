@@ -3,53 +3,63 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Backup - LB impressões 3D</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#11141b" />
+  <title>Empresa e backup - LB impressões 3D</title>
+  <link rel="icon" type="image/png" href="Logo LB impressões 3D.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
 </head>
 
 <body>
   <div class="overlay" onclick="toggleMenu()"></div>
 
   <div class="mobile-header">
-    <button type="button" onclick="toggleMenu()"><i class="fas fa-bars"></i></button>
-    <h3>LB impressões 3D</h3>
-    <div style="width: 30px;"></div>
+    <button type="button" onclick="toggleMenu()" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
+    <span class="mobile-brand"><img src="Logo LB impressões 3D.png" alt="" /> LB impressões 3D</span>
+    <span style="width: 40px;"></span>
   </div>
 
   <div class="app-container">
     <aside class="sidebar" id="sidebar">
       <div class="logo-area">
-        <img src="Logo LB impressões 3D.png" alt="Logo LB" id="app-logo" />
-        <h2>LB impressões 3D</h2>
-        <button class="close-menu-btn" type="button" onclick="toggleMenu()"><i class="fas fa-times"></i></button>
+        <img src="Logo LB impressões 3D.png" alt="Logo LB impressões 3D" id="app-logo" />
+        <div class="brand-text">
+          <strong>LB impressões 3D</strong>
+          <span>Gestão de impressão</span>
+        </div>
+        <button class="close-menu-btn" type="button" onclick="toggleMenu()" aria-label="Fechar menu"><i class="fas fa-times"></i></button>
       </div>
 
-            <nav>
-                <a href="dashboard.html" class="nav-link"><i class="fas fa-chart-line"></i>
-                    Dashboard</a>
-                <a href="orcamento.html" class="nav-link"><i class="fas fa-calculator"></i> Novo
-                    Orçamento</a>
-                <a href="historico.html" class="nav-link"><i class="fas fa-list"></i> Histórico &
-                    Vendas</a>
-                <a href="filamentos.html" class="nav-link"><i class="fas fa-circle-notch"></i>
-                    Filamentos</a>
-                <a href="maquinas.html" class="nav-link"><i class="fas fa-print"></i>
-                    Máquinas</a>
-                <a href="backup.html" class="nav-link nav-backup"><i class="fas fa-database"></i>
-                    Backup & Dados</a>
-            </nav>
+      <nav>
+        <span class="nav-section">Operação</span>
+        <a href="dashboard.html" class="nav-link"><i class="fas fa-chart-pie"></i> Painel</a>
+        <a href="orcamento.html" class="nav-link"><i class="fas fa-calculator"></i> Novo orçamento</a>
+        <a href="historico.html" class="nav-link"><i class="fas fa-receipt"></i> Orçamentos e vendas</a>
+
+        <span class="nav-section">Cadastros</span>
+        <a href="filamentos.html" class="nav-link"><i class="fas fa-compact-disc"></i> Filamentos</a>
+        <a href="maquinas.html" class="nav-link"><i class="fas fa-print"></i> Impressoras</a>
+
+        <span class="nav-section">Sistema</span>
+        <a href="backup.html" class="nav-link"><i class="fas fa-sliders-h"></i> Empresa e backup</a>
+      </nav>
     </aside>
 
     <main class="content">
       <section id="backup" class="section active-section">
-        <header>
-          <h1>Backup</h1>
+        <header class="page-header">
+          <div>
+            <h1><i class="fas fa-sliders-h"></i> Empresa e backup</h1>
+            <p>Dados que aparecem no orçamento e cópia de segurança</p>
+          </div>
         </header>
 
         <div class="form-container empresa-form">
-          <h3><i class="fas fa-store"></i> Dados da Empresa</h3>
+          <h3><i class="fas fa-store"></i> Dados da empresa</h3>
           <p class="hint">Aparecem no orçamento que você envia para o cliente.</p>
           <div class="row">
             <div class="input-group">
@@ -84,19 +94,24 @@
           </button>
         </div>
 
-        <div class="split-view">
+        <div class="split-view" style="grid-template-columns: 1fr 1fr;">
           <div class="form-container">
-            <h3><i class="fas fa-download"></i> Exportar</h3>
-            <button class="btn-primary full-width" type="button" onclick="gerarBackup()">Gerar Código</button>
-            <textarea id="backup-output" readonly placeholder="Código..."></textarea>
-            <button class="btn-secondary btn-sm full-width" type="button" onclick="copiarBackup()">Copiar</button>
+            <h3><i class="fas fa-download"></i> Exportar backup</h3>
+            <p class="hint">Gera um código com todos os seus dados. Guarde em um lugar seguro.</p>
+            <textarea id="backup-output" readonly placeholder="O código aparece aqui..."></textarea>
+            <div class="row" style="margin-top: 12px;">
+              <button class="btn-primary" type="button" onclick="gerarBackup()" style="flex: 1;"><i class="fas fa-file-export"></i> Gerar código</button>
+              <button class="btn-secondary" type="button" onclick="copiarBackup()" style="flex: 1; margin-top: 0;"><i class="far fa-copy"></i> Copiar</button>
+            </div>
           </div>
 
-          <div class="form-container" style="border: 1px solid var(--accent);">
-            <h3><i class="fas fa-upload"></i> Restaurar</h3>
-            <textarea id="backup-input" placeholder="Cole aqui..."></textarea>
-            <button class="btn-primary full-width" type="button" style="background-color: var(--danger); color: white;"
-              onclick="restaurarBackup()">Restaurar</button>
+          <div class="form-container">
+            <h3><i class="fas fa-upload"></i> Restaurar backup</h3>
+            <p class="hint">Atenção: substitui todos os dados atuais pelos do código.</p>
+            <textarea id="backup-input" placeholder="Cole o código aqui..."></textarea>
+            <button class="btn-primary btn-danger full-width" type="button" onclick="restaurarBackup()" style="margin-top: 12px;">
+              <i class="fas fa-rotate-left"></i> Restaurar
+            </button>
           </div>
         </div>
       </section>
