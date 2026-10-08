@@ -524,12 +524,16 @@ function renderizarHistorico() {
     }
 
     tbody.innerHTML = orcamentos.map((orc, index) => {
-        let botoes = `
+        let botoes = '';
+        if (orc.status === 'Pendente' || orc.status === 'Cancelado') {
+            botoes += `
+        <button class="action-btn btn-approve com-texto" type="button" title="Aprovar venda (desconta o filamento do estoque)" onclick="mudarStatus(${index}, 'Aprovado')"><i class="fas fa-check"></i> Aprovar</button>`;
+        }
+        botoes += `
         <a class="action-btn btn-quote" href="orcamento-cliente.html?id=${orc.id}" title="Orçamento para o cliente"><i class="fas fa-file-invoice"></i></a>`;
         if (orc.status === 'Pendente') {
             botoes += `
-        <button class="action-btn btn-approve" type="button" title="Aprovar venda (dá baixa no estoque)" onclick="mudarStatus(${index}, 'Aprovado')"><i class="fas fa-check"></i></button>
-        <button class="action-btn btn-personal" type="button" title="Uso pessoal (dá baixa no estoque)" onclick="mudarStatus(${index}, 'Pessoal')"><i class="fas fa-user"></i></button>`;
+        <button class="action-btn btn-personal" type="button" title="Uso pessoal (desconta o filamento do estoque)" onclick="mudarStatus(${index}, 'Pessoal')"><i class="fas fa-user"></i></button>`;
         }
         if (orc.status !== 'Cancelado') {
             botoes += `
@@ -549,7 +553,10 @@ function renderizarHistorico() {
           <strong>${brl(orc.valorVenda)}</strong><br>
           <small>Custo ${brl(orc.custoTotal)}</small>
         </td>
-        <td><span class="status-badge ${CLASSES_STATUS[orc.status] || ''}">${esc(orc.status)}</span></td>
+        <td>
+          <span class="status-badge ${CLASSES_STATUS[orc.status] || ''}">${esc(orc.status)}</span>
+          ${orc.status === 'Aprovado' && orc.dataAprovacao ? `<br><small>em ${esc(orc.dataAprovacao)}</small>` : ''}
+        </td>
         <td class="acoes">${botoes}</td>
       </tr>`;
     }).join('');
@@ -579,7 +586,16 @@ function mudarStatus(index, novoStatus) {
         }
     }
 
-    if (novoStatus === 'Aprovado' || novoStatus === 'Pessoal') {
+    if ((novoStatus === 'Aprovado' || novoStatus === 'Pessoal') && !jaBaixouEstoque) {
+        if (novoStatus === 'Aprovado') {
+            const usados = (orc.filamentosUsados || [])
+                .map(item => `• ${item.nome}: ${Number(item.peso || 0).toLocaleString('pt-BR')} g`)
+                .join('\n');
+            const pergunta = `Aprovar "${orc.produto}" (${brl(orc.valorVenda)})?` +
+                (usados ? `\n\nSerá descontado do estoque:\n${usados}` : '');
+            if (!confirm(pergunta)) return;
+        }
+
         let estoqueOk = true;
 
         (orc.filamentosUsados || []).forEach(item => {
@@ -603,6 +619,7 @@ function mudarStatus(index, novoStatus) {
     }
 
     orc.status = novoStatus;
+    if (novoStatus === 'Aprovado') orc.dataAprovacao = new Date().toLocaleDateString('pt-BR');
     salvarDados(DB_KEY_ORCAMENTOS, orcamentos);
 
     const MENSAGENS = {
@@ -645,25 +662,20 @@ function atualizarDashboard() {
     reloadFromStorage();
 
     const filtroMes = filtroEl.value;
-    let faturamento = 0, lucro = 0, custo = 0, qtdVendas = 0;
+    let faturamento = 0, lucro = 0, custo = 0, qtdVendas = 0, gramas = 0;
 
     orcamentos.forEach(o => {
-        let dataValida = true;
+        if (o.status !== 'Aprovado') return;
 
-        if (filtroMes) {
-            const partes = String(o.data || '').split('/');
-            if (partes.length === 3) {
-                const anoMesOrcamento = `${partes[2]}-${partes[1]}`;
-                if (anoMesOrcamento !== filtroMes) dataValida = false;
-            }
-        }
+        // A venda conta no mês em que foi aprovada (orçamentos antigos não têm essa data)
+        const partes = String(o.dataAprovacao || o.data || '').split('/');
+        if (filtroMes && partes.length === 3 && `${partes[2]}-${partes[1]}` !== filtroMes) return;
 
-        if (dataValida && o.status === 'Aprovado') {
-            faturamento += Number(o.valorVenda || 0);
-            lucro += Number(o.lucro || 0);
-            custo += Number(o.custoTotal || 0);
-            qtdVendas++;
-        }
+        faturamento += Number(o.valorVenda || 0);
+        lucro += Number(o.lucro || 0);
+        custo += Number(o.custoTotal || 0);
+        gramas += (o.filamentosUsados || []).reduce((soma, item) => soma + Number(item.peso || 0), 0);
+        qtdVendas++;
     });
 
     const setTxt = (id, txt) => {
@@ -675,6 +687,7 @@ function atualizarDashboard() {
     setTxt('dash-lucro', brl(lucro));
     setTxt('dash-custo', brl(custo));
     setTxt('dash-vendas', String(qtdVendas));
+    setTxt('dash-filamento', `${gramas.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} g`);
 
     const lista = document.getElementById('dash-history-list');
     if (lista) {
