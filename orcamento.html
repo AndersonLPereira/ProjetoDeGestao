@@ -92,12 +92,16 @@
                   <select id="orc-maquina" onchange="calcularEmTempoReal()"></select>
                 </div>
                 <div class="input-group">
-                  <label for="orc-tempo">Tempo de impressão (horas)</label>
+                  <label for="orc-tempo">Tempo por peça (horas)</label>
                   <input type="number" id="orc-tempo" step="0.1" min="0" placeholder="Ex.: 4.5" oninput="calcularEmTempoReal()">
+                </div>
+                <div class="input-group" style="max-width: 160px;">
+                  <label for="orc-quantidade">Quantidade</label>
+                  <input type="number" id="orc-quantidade" value="1" min="1" step="1" oninput="calcularEmTempoReal()">
                 </div>
               </div>
 
-              <label>Filamentos usados</label>
+              <label>Filamentos usados <small class="hint">peso de uma peça</small></label>
               <div id="filamentos-container"></div>
               <button class="btn-secondary btn-sm full-width" type="button" onclick="adicionarLinhaFilamento()">
                 <i class="fas fa-plus"></i> Adicionar filamento
@@ -108,7 +112,7 @@
               <h3 class="step-title"><b>3</b> Custos e margem</h3>
               <div class="row">
                 <div class="input-group">
-                  <label for="orc-extras">Extras (R$) <small class="hint">embalagem, peças, tinta</small></label>
+                  <label for="orc-extras">Extras por peça (R$) <small class="hint">embalagem, ímãs, tinta</small></label>
                   <input type="number" id="orc-extras" value="0" min="0" step="0.01" oninput="calcularEmTempoReal()">
                 </div>
                 <div class="input-group">
@@ -122,7 +126,7 @@
                   <input type="number" id="orc-margem-lucro" value="100" min="0" oninput="limparPrecoManual(); calcularEmTempoReal()">
                 </div>
                 <div class="input-group">
-                  <label for="orc-preco-manual">Ou preço fixo (R$)</label>
+                  <label for="orc-preco-manual">Ou preço fixo por peça (R$)</label>
                   <input type="number" id="orc-preco-manual" min="0" step="0.01" placeholder="Opcional" oninput="calcularEmTempoReal()">
                 </div>
               </div>
@@ -155,6 +159,7 @@
             <div class="final-price-box">
               <small>Preço sugerido</small>
               <h2 id="res-preco-final">R$ 0,00</h2>
+              <small id="res-unitario">Preço por peça</small><br>
               <small id="res-lucro-final">Lucro: R$ 0,00</small>
             </div>
 

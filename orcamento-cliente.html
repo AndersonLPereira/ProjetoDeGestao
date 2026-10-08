@@ -5,88 +5,203 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Orçamento - LB impressões 3D</title>
+  <link rel="icon" type="image/png" href="Logo LB impressões 3D.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet" />
   <style>
     :root {
-      --primary: #ff7a1a;
-      --navy: #11141b;
-      --text: #1b2433;
-      --dim: #5d6b82;
-      --line: #dfe6f2;
-      --soft: #fff4ec;
+      --laranja: #ff7a1a;
+      --laranja-escuro: #e0610a;
+      --laranja-claro: #fff3ea;
+      --grafite: #11141b;
+      --texto: #1c2230;
+      --suave: #5f6878;
+      --linha: #e6e8ee;
+      --fundo-bloco: #f6f7f9;
     }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    body { background: #e9eef7; color: var(--text); padding: 24px 16px 48px; }
+    body {
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: #2a2f3a;
+      color: var(--texto);
+      padding: 24px 16px 48px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
 
+    /* ===== barra de ações (não sai no PDF) ===== */
     .toolbar {
-      max-width: 800px; margin: 0 auto 16px;
-      display: flex; gap: 10px; flex-wrap: wrap; justify-content: space-between;
+      max-width: 210mm; margin: 0 auto 16px;
+      display: flex; gap: 10px; flex-wrap: wrap; justify-content: space-between; align-items: center;
     }
     .toolbar .group { display: flex; gap: 10px; flex-wrap: wrap; }
     .toolbar a, .toolbar button {
       display: inline-flex; align-items: center; gap: 8px;
-      padding: 10px 16px; border-radius: 8px; border: 0; cursor: pointer;
-      font-size: .95rem; font-weight: 600; text-decoration: none;
+      padding: 11px 18px; border-radius: 9px; border: 0; cursor: pointer;
+      font: 600 14px 'Inter', sans-serif; text-decoration: none;
     }
-    .btn-back { background: #fff; color: var(--navy); border: 1px solid var(--line) !important; }
-    .btn-print { background: var(--navy); color: #fff; }
+    .btn-back { background: rgba(255, 255, 255, .1); color: #fff; }
+    .btn-pdf { background: var(--laranja); color: #1a0e04; }
     .btn-whats { background: #25d366; color: #fff; }
+    .dica { max-width: 210mm; margin: -6px auto 14px; color: #b8bfcc; font-size: 12px; }
 
+    /* ===== folha A4 ===== */
     .sheet {
-      max-width: 800px; margin: 0 auto; background: #fff;
-      border-radius: 12px; box-shadow: 0 10px 30px rgba(8, 20, 38, .12);
-      padding: 40px;
+      width: 100%;
+      max-width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      background: #fff;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, .35);
+      display: flex;
+      flex-direction: column;
     }
 
-    .head { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding-bottom: 24px; border-bottom: 3px solid var(--primary); }
-    .brand { display: flex; align-items: center; gap: 16px; }
-    .brand img { width: 84px; height: 84px; object-fit: contain; border: 1px solid var(--line); border-radius: 10px; }
-    .brand h1 { font-size: 1.4rem; color: var(--navy); }
-    .brand .contacts { color: var(--dim); font-size: .85rem; margin-top: 4px; line-height: 1.5; }
-    .doc-id { text-align: right; }
-    .doc-id .label { font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
-    .doc-id .num { font-size: 1.3rem; font-weight: 700; color: var(--primary); }
-    .doc-id .dates { font-size: .85rem; color: var(--dim); margin-top: 6px; line-height: 1.5; }
+    h1, h2, h3, .num-doc, .total-valor { font-family: 'Space Grotesk', 'Inter', sans-serif; }
 
-    h2 { font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); margin: 28px 0 10px; }
-
-    .client { background: var(--soft); border-radius: 8px; padding: 14px 16px; line-height: 1.6; }
-
-    table { width: 100%; border-collapse: collapse; }
-    th { text-align: left; font-size: .8rem; color: var(--dim); font-weight: 600; padding: 10px 8px; border-bottom: 1px solid var(--line); }
-    td { padding: 14px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-    td.valor, th.valor { text-align: right; white-space: nowrap; }
-    td small { color: var(--dim); }
-
-    .total { display: flex; justify-content: flex-end; margin-top: 18px; }
-    .total-box { background: var(--navy); color: #fff; border-radius: 10px; padding: 16px 22px; min-width: 260px; text-align: right; }
-    .total-box span { display: block; font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; opacity: .75; }
-    .total-box strong { font-size: 1.8rem; }
-
-    .info p { line-height: 1.6; white-space: pre-line; }
-    .info .row { display: flex; gap: 6px; }
-
-    .foot { margin-top: 36px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--dim); font-size: .8rem; text-align: center; }
-
-    .not-found { max-width: 800px; margin: 60px auto; text-align: center; color: var(--dim); }
-    .not-found a { color: var(--primary); }
-
-    @media (max-width: 600px) {
-      .sheet { padding: 22px 18px; }
-      .head { flex-direction: column; align-items: flex-start; }
-      .doc-id { text-align: left; }
-      .brand img { width: 64px; height: 64px; }
-      .total-box { width: 100%; }
+    /* cabeçalho escuro com faixa "camadas" */
+    .topo {
+      background: var(--grafite);
+      color: #fff;
+      padding: 26px 34px 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+    }
+    .marca { display: flex; align-items: center; gap: 16px; }
+    .marca img { width: 74px; height: 74px; object-fit: contain; background: #fff; border-radius: 14px; padding: 4px; }
+    .marca h1 { font-size: 22px; line-height: 1.15; }
+    .marca span { color: #aab2c0; font-size: 12px; }
+    .contatos { text-align: right; font-size: 12px; color: #d5dae3; line-height: 1.75; }
+    .contatos i { color: var(--laranja); width: 16px; text-align: center; margin-left: 6px; }
+    .camadas {
+      height: 10px;
+      background: repeating-linear-gradient(180deg, var(--laranja) 0 2px, var(--laranja-escuro) 2px 3px);
     }
 
-    @page { size: A4; margin: 14mm; }
+    .corpo { padding: 28px 34px 20px; flex: 1; display: flex; flex-direction: column; }
+
+    /* título */
+    .titulo { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 22px; }
+    .titulo h2 { font-size: 30px; letter-spacing: -.01em; line-height: 1; }
+    .titulo h2 small { display: block; font: 600 11px 'Inter', sans-serif; color: var(--laranja-escuro); letter-spacing: .14em; text-transform: uppercase; margin-bottom: 6px; }
+    .datas { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .chip { background: var(--fundo-bloco); border: 1px solid var(--linha); border-radius: 8px; padding: 6px 10px; text-align: left; }
+    .chip span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--suave); }
+    .chip strong { font-size: 13px; }
+    .chip.destaque { background: var(--laranja-claro); border-color: #ffd2b0; }
+
+    /* blocos cliente / pedido */
+    .blocos { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 22px; }
+    .bloco { border: 1px solid var(--linha); border-radius: 10px; padding: 14px 16px; }
+    .bloco h3, .secao h3, .pagamento h3 {
+      font: 600 10.5px 'Inter', sans-serif;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--suave);
+      margin-bottom: 8px;
+      display: flex; align-items: center; gap: 7px;
+    }
+    .bloco h3 i, .secao h3 i, .pagamento h3 i { color: var(--laranja); }
+    .bloco .nome { font-size: 15px; font-weight: 700; }
+    .linha-info { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; }
+    .linha-info span { color: var(--suave); }
+    .linha-info strong { text-align: right; }
+
+    /* tabela de itens */
+    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    thead th {
+      background: var(--grafite);
+      color: #fff;
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      padding: 10px 12px;
+      text-align: left;
+    }
+    thead th:first-child { border-radius: 8px 0 0 8px; }
+    thead th:last-child { border-radius: 0 8px 8px 0; }
+    tbody td { padding: 14px 12px; border-bottom: 1px solid var(--linha); vertical-align: top; }
+    .dir { text-align: right; white-space: nowrap; }
+    .centro { text-align: center; }
+    .item-nome { font-size: 14px; font-weight: 700; }
+    .specs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+    .spec { background: var(--fundo-bloco); border: 1px solid var(--linha); border-radius: 20px; padding: 2px 9px; font-size: 11px; color: var(--suave); }
+    .spec b { color: var(--texto); font-weight: 600; }
+
+    /* pagamento + total */
+    .fechamento { display: grid; grid-template-columns: 1.25fr 1fr; gap: 16px; align-items: start; margin-bottom: 20px; }
+    .pagamento { background: var(--fundo-bloco); border-radius: 10px; padding: 14px 16px; }
+    .pagamento p { white-space: pre-line; }
+    .pix { margin-top: 10px; padding: 9px 12px; background: #fff; border: 1px dashed #c8ced8; border-radius: 8px; display: flex; gap: 10px; align-items: center; }
+    .pix i { color: #32bcad; font-size: 16px; }
+    .pix span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--suave); }
+    .pix strong { word-break: break-all; }
+
+    .totais { border: 1px solid var(--linha); border-radius: 10px; overflow: hidden; }
+    .totais .linha-info { padding: 9px 16px; border-bottom: 1px solid var(--linha); }
+    .total-final {
+      background: var(--laranja);
+      color: #1a0e04;
+      padding: 14px 16px;
+      display: flex; justify-content: space-between; align-items: center;
+      background-image: repeating-linear-gradient(180deg, rgba(255, 255, 255, .12) 0 2px, transparent 2px 6px);
+    }
+    .total-final span { font-weight: 700; text-transform: uppercase; letter-spacing: .08em; font-size: 12px; }
+    .total-final .total-valor { font-size: 26px; font-weight: 700; text-transform: none; letter-spacing: -.01em; }
+
+    .secao { margin-bottom: 18px; }
+    .secao p { white-space: pre-line; }
+    .termos { list-style: none; color: var(--suave); font-size: 11.5px; }
+    .termos li { padding-left: 16px; position: relative; margin-bottom: 4px; }
+    .termos li::before { content: ""; position: absolute; left: 2px; top: 7px; width: 6px; height: 6px; border-radius: 2px; background: var(--laranja); }
+
+    /* aceite */
+    .aceite { margin-top: auto; padding-top: 18px; }
+    .aceite p { color: var(--suave); font-size: 11.5px; margin-bottom: 34px; }
+    .assinaturas { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; }
+    .assinaturas div { border-top: 1px solid #9aa2b0; padding-top: 6px; font-size: 11px; color: var(--suave); text-align: center; }
+
+    .rodape {
+      border-top: 1px solid var(--linha);
+      padding: 12px 34px 16px;
+      display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+      font-size: 10.5px; color: var(--suave);
+    }
+    .rodape strong { color: var(--laranja-escuro); }
+
+    .not-found { max-width: 210mm; margin: 60px auto; text-align: center; color: #d5dae3; }
+    .not-found a { color: var(--laranja); }
+
+    /* ===== celular ===== */
+    @media (max-width: 640px) {
+      body { padding: 12px 8px 32px; }
+      .sheet { min-height: 0; }
+      .topo { flex-direction: column; align-items: flex-start; padding: 20px; }
+      .contatos { text-align: left; }
+      .contatos i { margin: 0 6px 0 0; }
+      .corpo { padding: 20px; }
+      .titulo { flex-direction: column; align-items: flex-start; }
+      .datas { justify-content: flex-start; }
+      .blocos, .fechamento { grid-template-columns: 1fr; }
+      thead .col-unit, tbody .col-unit { display: none; }
+      .rodape { padding: 12px 20px; }
+    }
+
+    /* ===== PDF / impressão ===== */
+    @page { size: A4; margin: 0; }
     @media print {
-      body { background: #fff; padding: 0; }
-      .toolbar { display: none; }
-      .sheet { box-shadow: none; border-radius: 0; padding: 0; max-width: none; }
-      .client, .total-box { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body { background: #fff; padding: 0; font-size: 12.5px; }
+      .toolbar, .dica { display: none; }
+      .sheet { box-shadow: none; max-width: none; width: 210mm; min-height: 297mm; }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      tr, .bloco, .fechamento, .secao, .aceite { break-inside: avoid; }
     }
   </style>
 </head>
@@ -95,22 +210,25 @@
   <div class="toolbar">
     <a class="btn-back" href="historico.html"><i class="fas fa-arrow-left"></i> Voltar</a>
     <div class="group">
-      <button class="btn-print" type="button" onclick="window.print()"><i class="fas fa-print"></i> Imprimir / Salvar PDF</button>
+      <button class="btn-pdf" type="button" onclick="window.print()"><i class="fas fa-file-pdf"></i> Salvar PDF / Imprimir</button>
       <a class="btn-whats" id="btn-whats" href="#" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i> Enviar no WhatsApp</a>
     </div>
   </div>
+  <p class="dica"><i class="fas fa-circle-info"></i> Para gerar o PDF, clique em "Salvar PDF" e escolha <b>Salvar como PDF</b> no destino. O arquivo já sai com o nome do orçamento.</p>
 
   <div id="documento"></div>
 
   <script src="script.js"></script>
   <script>
-    const brl = v => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     const soDigitos = v => String(v || '').replace(/\D/g, '');
     const telWhats = v => {
       const d = soDigitos(v);
       if (!d) return '';
       return d.length <= 11 ? `55${d}` : d;
     };
+    const fmtData = d => d.toLocaleDateString('pt-BR');
+    const gramas = g => `${Number(g || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} g`;
+    const linhas = texto => String(texto || '').split('\n').map(l => l.trim()).filter(Boolean);
 
     // Orçamento fictício para demonstração: orcamento-cliente.html?exemplo
     const ORCAMENTO_EXEMPLO = {
@@ -119,8 +237,10 @@
       telefone: '(11) 98765-4321',
       produto: 'Vaso decorativo geométrico',
       categoria: 'Decoração',
+      quantidade: 2,
+      valorUnitario: 44.95,
       valorVenda: 89.9,
-      filamentosUsados: [{ id: 'ex', nome: 'PLA Azul' }],
+      filamentosUsados: [{ id: 'ex', nome: 'PLA Azul', peso: 360 }],
       prazo: '5 dias úteis',
       observacoes: 'Altura de 15 cm, cor azul, acabamento lixado.'
     };
@@ -129,104 +249,174 @@
       reloadFromStorage();
       const empresa = carregarEmpresa();
       const params = new URLSearchParams(location.search);
-      const id = params.get('id');
-      const orc = params.has('exemplo')
+      const exemplo = params.has('exemplo');
+      const orc = exemplo
         ? ORCAMENTO_EXEMPLO
-        : orcamentos.find(o => String(o.id) === String(id));
+        : orcamentos.find(o => String(o.id) === String(params.get('id')));
       const alvo = document.getElementById('documento');
 
       if (!orc) {
         document.querySelector('.toolbar .group').style.display = 'none';
+        document.querySelector('.dica').style.display = 'none';
         alvo.innerHTML = `<div class="not-found"><p>Orçamento não encontrado.</p><p><a href="historico.html">Voltar ao histórico</a></p></div>`;
         return;
       }
 
       const numero = String(orc.id).slice(-6);
       const emissao = new Date(Number(orc.id));
-      const validade = new Date(emissao.getTime() + empresa.validadeDias * 86400000);
-      const fmtData = d => d.toLocaleDateString('pt-BR');
+      const validade = new Date(emissao.getTime() + Number(empresa.validadeDias || 7) * 86400000);
 
-      const materiais = (orc.filamentosUsados || []).map(item => {
+      const quantidade = Number(orc.quantidade || 1);
+      const unitario = Number(orc.valorUnitario || Number(orc.valorVenda || 0) / quantidade);
+      const pesoTotal = (orc.filamentosUsados || []).reduce((s, i) => s + Number(i.peso || 0), 0);
+
+      const materiais = [...new Set((orc.filamentosUsados || []).map(item => {
         const fil = filamentos.find(f => String(f.id) === String(item.id));
         return fil ? [fil.tipo, fil.cor].filter(Boolean).join(' ') || item.nome : item.nome;
-      }).filter(Boolean);
+      }).filter(Boolean))];
+
+      const specs = [
+        materiais.length && `<span class="spec">Material: <b>${materiais.map(esc).join(', ')}</b></span>`,
+        pesoTotal > 0 && `<span class="spec">Peso aprox.: <b>${gramas(pesoTotal / quantidade)}</b>${quantidade > 1 ? ' por peça' : ''}</span>`,
+        orc.categoria && `<span class="spec">${esc(orc.categoria)}</span>`
+      ].filter(Boolean).join('');
 
       const contatos = [
-        empresa.whatsapp && `<i class="fab fa-whatsapp"></i> ${esc(empresa.whatsapp)}`,
-        empresa.instagram && `<i class="fab fa-instagram"></i> ${esc(empresa.instagram)}`,
-        empresa.email && `<i class="fas fa-envelope"></i> ${esc(empresa.email)}`
-      ].filter(Boolean).join(' &nbsp;·&nbsp; ');
+        empresa.whatsapp && `${esc(empresa.whatsapp)} <i class="fab fa-whatsapp"></i>`,
+        empresa.instagram && `${esc(empresa.instagram)} <i class="fab fa-instagram"></i>`,
+        empresa.email && `${esc(empresa.email)} <i class="fas fa-envelope"></i>`,
+        empresa.cidade && `${esc(empresa.cidade)} <i class="fas fa-location-dot"></i>`
+      ].filter(Boolean).join('<br>');
+
+      const termos = linhas(empresa.termos);
+      const comoAprovar = empresa.whatsapp
+        ? `Para aprovar, responda pelo WhatsApp ${esc(empresa.whatsapp)} ou assine abaixo.`
+        : 'Para aprovar, responda a mensagem em que recebeu este orçamento ou assine abaixo.';
 
       alvo.innerHTML = `
         <article class="sheet">
-          <header class="head">
-            <div class="brand">
+          <header class="topo">
+            <div class="marca">
               <img src="Logo LB impressões 3D.png" alt="Logo ${esc(empresa.nome)}">
               <div>
                 <h1>${esc(empresa.nome)}</h1>
-                ${contatos ? `<div class="contacts">${contatos}</div>` : ''}
+                <span>Impressão 3D sob medida${empresa.documento ? ` · ${esc(empresa.documento)}` : ''}</span>
               </div>
             </div>
-            <div class="doc-id">
-              <div class="label">Orçamento</div>
-              <div class="num">Nº ${numero}</div>
-              <div class="dates">Emissão: ${fmtData(emissao)}<br>Válido até: ${fmtData(validade)}</div>
-            </div>
+            ${contatos ? `<div class="contatos">${contatos}</div>` : ''}
           </header>
+          <div class="camadas"></div>
 
-          <h2>Cliente</h2>
-          <div class="client">
-            <strong>${esc(orc.cliente)}</strong>
-            ${orc.telefone ? `<br>${esc(orc.telefone)}` : ''}
+          <div class="corpo">
+            <div class="titulo">
+              <h2><small>Proposta comercial</small>Orçamento <span style="color: var(--laranja);">#${numero}</span></h2>
+              <div class="datas">
+                <div class="chip"><span>Emissão</span><strong>${fmtData(emissao)}</strong></div>
+                <div class="chip destaque"><span>Válido até</span><strong>${fmtData(validade)}</strong></div>
+              </div>
+            </div>
+
+            <div class="blocos">
+              <div class="bloco">
+                <h3><i class="fas fa-user"></i> Cliente</h3>
+                <div class="nome">${esc(orc.cliente)}</div>
+                ${orc.telefone ? `<div style="color: var(--suave);"><i class="fab fa-whatsapp"></i> ${esc(orc.telefone)}</div>` : ''}
+              </div>
+              <div class="bloco">
+                <h3><i class="fas fa-box"></i> Pedido</h3>
+                <div class="linha-info"><span>Quantidade</span><strong>${quantidade} ${quantidade > 1 ? 'peças' : 'peça'}</strong></div>
+                <div class="linha-info"><span>Prazo de entrega</span><strong>${esc(orc.prazo || 'A combinar')}</strong></div>
+              </div>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Descrição</th>
+                  <th class="centro">Qtd.</th>
+                  <th class="dir col-unit">Valor unit.</th>
+                  <th class="dir">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <div class="item-nome">${esc(orc.produto)}</div>
+                    ${specs ? `<div class="specs">${specs}</div>` : ''}
+                  </td>
+                  <td class="centro">${quantidade}</td>
+                  <td class="dir col-unit">${brl(unitario)}</td>
+                  <td class="dir"><strong>${brl(orc.valorVenda)}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="fechamento">
+              <div class="pagamento">
+                <h3><i class="fas fa-wallet"></i> Forma de pagamento</h3>
+                <p>${esc(empresa.condicoes || 'A combinar.')}</p>
+                ${empresa.pix ? `
+                <div class="pix">
+                  <i class="fas fa-qrcode"></i>
+                  <div><span>Chave Pix</span><strong>${esc(empresa.pix)}</strong></div>
+                </div>` : ''}
+              </div>
+              <div class="totais">
+                <div class="linha-info"><span>Subtotal (${quantidade} × ${brl(unitario)})</span><strong>${brl(orc.valorVenda)}</strong></div>
+                <div class="total-final"><span>Total</span><span class="total-valor">${brl(orc.valorVenda)}</span></div>
+              </div>
+            </div>
+
+            ${orc.observacoes ? `
+            <div class="secao">
+              <h3><i class="fas fa-pen"></i> Observações</h3>
+              <p>${esc(orc.observacoes)}</p>
+            </div>` : ''}
+
+            ${termos.length ? `
+            <div class="secao">
+              <h3><i class="fas fa-circle-info"></i> Informações importantes</h3>
+              <ul class="termos">${termos.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+            </div>` : ''}
+
+            <div class="aceite">
+              <p>${comoAprovar}</p>
+              <div class="assinaturas">
+                <div>Assinatura do cliente</div>
+                <div>Data</div>
+              </div>
+            </div>
           </div>
 
-          <h2>Itens</h2>
-          <table>
-            <thead><tr><th>Descrição</th><th class="valor">Valor</th></tr></thead>
-            <tbody>
-              <tr>
-                <td>
-                  <strong>${esc(orc.produto)}</strong>
-                  ${orc.categoria ? `<br><small>${esc(orc.categoria)}</small>` : ''}
-                  ${materiais.length ? `<br><small>Material: ${materiais.map(esc).join(', ')}</small>` : ''}
-                </td>
-                <td class="valor">${brl(orc.valorVenda)}</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div class="total">
-            <div class="total-box"><span>Total</span><strong>${brl(orc.valorVenda)}</strong></div>
-          </div>
-
-          <section class="info">
-            ${orc.prazo ? `<h2>Prazo de entrega</h2><p>${esc(orc.prazo)}</p>` : ''}
-            ${orc.observacoes ? `<h2>Observações</h2><p>${esc(orc.observacoes)}</p>` : ''}
-            ${empresa.condicoes ? `<h2>Condições de pagamento</h2><p>${esc(empresa.condicoes)}</p>` : ''}
-          </section>
-
-          <footer class="foot">Obrigado pela preferência! · ${esc(empresa.nome)}</footer>
+          <footer class="rodape">
+            <span><strong>${esc(empresa.nome)}</strong>${empresa.documento ? ` · ${esc(empresa.documento)}` : ''}${empresa.cidade ? ` · ${esc(empresa.cidade)}` : ''}</span>
+            <span>Obrigado pela preferência!</span>
+          </footer>
         </article>
       `;
 
       const mensagem = [
-        `Olá, ${orc.cliente}! Segue o orçamento nº ${numero} da ${empresa.nome}:`,
+        `Olá, ${orc.cliente}! Tudo bem? 😊`,
+        `Segue o orçamento nº ${numero} da ${empresa.nome}:`,
         '',
-        `*${orc.produto}*`,
+        `*${orc.produto}*${quantidade > 1 ? ` (${quantidade} peças)` : ''}`,
         materiais.length ? `Material: ${materiais.join(', ')}` : null,
+        quantidade > 1 ? `Valor por peça: ${brl(unitario)}` : null,
         `*Total: ${brl(orc.valorVenda)}*`,
-        orc.prazo ? `Prazo de entrega: ${orc.prazo}` : null,
+        `Prazo de entrega: ${orc.prazo || 'a combinar'}`,
         `Válido até ${fmtData(validade)}.`,
         empresa.condicoes ? `\n${empresa.condicoes}` : null,
+        empresa.pix ? `Chave Pix: ${empresa.pix}` : null,
         '',
-        'Qualquer dúvida, estou à disposição!'
+        'Vou te enviar o PDF com todos os detalhes. Qualquer dúvida, estou à disposição!'
       ].filter(l => l !== null).join('\n');
 
-      const tel = telWhats(orc.telefone);
       document.getElementById('btn-whats').href =
-        `https://wa.me/${tel}?text=${encodeURIComponent(mensagem)}`;
+        `https://wa.me/${telWhats(orc.telefone)}?text=${encodeURIComponent(mensagem)}`;
 
-      document.title = `Orçamento ${numero} - ${orc.cliente}`;
+      // O navegador usa o título como nome do arquivo PDF
+      const cliente = String(orc.cliente || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '');
+      document.title = `Orcamento-${numero}-${cliente}`;
     }
 
     // O orçamento de exemplo pode ser aberto sem login

@@ -80,6 +80,22 @@
               <label for="emp-email">E-mail</label>
               <input type="email" id="emp-email">
             </div>
+          </div>
+          <div class="row">
+            <div class="input-group">
+              <label for="emp-documento">CPF ou CNPJ <small class="hint">opcional</small></label>
+              <input type="text" id="emp-documento" placeholder="00.000.000/0001-00">
+            </div>
+            <div class="input-group">
+              <label for="emp-cidade">Cidade / endereço</label>
+              <input type="text" id="emp-cidade" placeholder="Ex.: São Paulo - SP">
+            </div>
+          </div>
+          <div class="row">
+            <div class="input-group">
+              <label for="emp-pix">Chave Pix</label>
+              <input type="text" id="emp-pix" placeholder="CPF, CNPJ, e-mail, celular ou chave aleatória">
+            </div>
             <div class="input-group">
               <label for="emp-validadeDias">Validade do orçamento (dias)</label>
               <input type="number" id="emp-validadeDias" min="1">
@@ -88,6 +104,10 @@
           <div class="input-group">
             <label for="emp-condicoes">Condições de pagamento</label>
             <textarea id="emp-condicoes" rows="3"></textarea>
+          </div>
+          <div class="input-group">
+            <label for="emp-termos">Informações importantes <small class="hint">uma por linha; aparecem no fim do orçamento</small></label>
+            <textarea id="emp-termos" rows="4"></textarea>
           </div>
           <button class="btn-primary full-width" type="button" onclick="salvarEmpresa()">
             <i class="fas fa-save"></i> Salvar dados da empresa

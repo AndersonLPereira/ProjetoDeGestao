@@ -11,8 +11,15 @@ const EMPRESA_PADRAO = {
     whatsapp: '',
     instagram: '',
     email: '',
+    documento: '',
+    cidade: '',
+    pix: '',
     validadeDias: 7,
-    condicoes: 'Pagamento: 50% na aprovação e 50% na entrega.\nPix, dinheiro ou cartão.'
+    condicoes: 'Pagamento: 50% na aprovação e 50% na entrega.\nPix, dinheiro ou cartão.',
+    termos: 'Peças impressas em 3D podem apresentar leves linhas de camada e pequenas variações de cor, que são características do processo.\n' +
+        'A produção começa após a aprovação do orçamento e o pagamento do sinal.\n' +
+        'Alterações no modelo após a aprovação podem mudar o valor e o prazo.\n' +
+        'O prazo de entrega é contado em dias úteis a partir da aprovação.'
 };
 
 function carregarEmpresa() {
@@ -451,20 +458,27 @@ function calcularEmTempoReal() {
         if (el) el.innerText = txt;
     };
 
-    setTxt('res-filamento', brl(custoFilamentoTotal));
-    setTxt('res-energia', brl(custoEnergia));
-    setTxt('res-desgaste', brl(custoDesgaste));
-    setTxt('res-extras', brl(extras));
-    setTxt('res-erro', brl(valorErro));
-    setTxt('res-total-custo', brl(custoFinal));
-    setTxt('res-preco-final', brl(precoVenda));
-    setTxt('res-lucro-final', `Lucro: ${brl(valorLucro)}`);
+    // Os valores acima são por peça; o pedido multiplica pela quantidade
+    const quantidade = Math.max(1, parseInt(document.getElementById('orc-quantidade')?.value, 10) || 1);
+
+    setTxt('res-filamento', brl(custoFilamentoTotal * quantidade));
+    setTxt('res-energia', brl(custoEnergia * quantidade));
+    setTxt('res-desgaste', brl(custoDesgaste * quantidade));
+    setTxt('res-extras', brl(extras * quantidade));
+    setTxt('res-erro', brl(valorErro * quantidade));
+    setTxt('res-total-custo', brl(custoFinal * quantidade));
+    setTxt('res-preco-final', brl(precoVenda * quantidade));
+    setTxt('res-unitario', quantidade > 1 ? `${quantidade} peças de ${brl(precoVenda)}` : 'Preço por peça');
+    setTxt('res-lucro-final', `Lucro: ${brl(valorLucro * quantidade)}`);
 
     orcamentoAtualCalculado = {
-        custoTotal: custoFinal,
-        valorVenda: precoVenda,
-        lucro: valorLucro,
-        filamentosUsados
+        quantidade,
+        valorUnitario: precoVenda,
+        tempoHoras,
+        custoTotal: custoFinal * quantidade,
+        valorVenda: precoVenda * quantidade,
+        lucro: valorLucro * quantidade,
+        filamentosUsados: filamentosUsados.map(item => ({ ...item, peso: item.peso * quantidade }))
     };
 }
 
@@ -489,6 +503,9 @@ async function salvarOrcamento() {
         telefone: document.getElementById('orc-telefone')?.value?.trim() || '',
         produto,
         categoria,
+        quantidade: orcamentoAtualCalculado.quantidade,
+        valorUnitario: orcamentoAtualCalculado.valorUnitario,
+        tempoHoras: orcamentoAtualCalculado.tempoHoras,
         custoTotal: orcamentoAtualCalculado.custoTotal,
         valorVenda: orcamentoAtualCalculado.valorVenda,
         lucro: orcamentoAtualCalculado.lucro,
@@ -806,7 +823,7 @@ async function restaurarBackup() {
 // =====================
 // DADOS DA EMPRESA
 // =====================
-const CAMPOS_EMPRESA = ['nome', 'whatsapp', 'instagram', 'email', 'validadeDias', 'condicoes'];
+const CAMPOS_EMPRESA = ['nome', 'whatsapp', 'instagram', 'email', 'documento', 'cidade', 'pix', 'validadeDias', 'condicoes', 'termos'];
 
 function preencherFormEmpresa() {
     const empresa = carregarEmpresa();
