@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Orçamento - LB impressões 3D</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #2f7dff;
+      --navy: #081426;
+      --text: #1b2433;
+      --dim: #5d6b82;
+      --line: #dfe6f2;
+      --soft: #f3f7ff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+    body { background: #e9eef7; color: var(--text); padding: 24px 16px 48px; }
+
+    .toolbar {
+      max-width: 800px; margin: 0 auto 16px;
+      display: flex; gap: 10px; flex-wrap: wrap; justify-content: space-between;
+    }
+    .toolbar .group { display: flex; gap: 10px; flex-wrap: wrap; }
+    .toolbar a, .toolbar button {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 16px; border-radius: 8px; border: 0; cursor: pointer;
+      font-size: .95rem; font-weight: 600; text-decoration: none;
+    }
+    .btn-back { background: #fff; color: var(--navy); border: 1px solid var(--line) !important; }
+    .btn-print { background: var(--navy); color: #fff; }
+    .btn-whats { background: #25d366; color: #fff; }
+
+    .sheet {
+      max-width: 800px; margin: 0 auto; background: #fff;
+      border-radius: 12px; box-shadow: 0 10px 30px rgba(8, 20, 38, .12);
+      padding: 40px;
+    }
+
+    .head { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding-bottom: 24px; border-bottom: 3px solid var(--primary); }
+    .brand { display: flex; align-items: center; gap: 16px; }
+    .brand img { width: 84px; height: 84px; object-fit: contain; border: 1px solid var(--line); border-radius: 10px; }
+    .brand h1 { font-size: 1.4rem; color: var(--navy); }
+    .brand .contacts { color: var(--dim); font-size: .85rem; margin-top: 4px; line-height: 1.5; }
+    .doc-id { text-align: right; }
+    .doc-id .label { font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+    .doc-id .num { font-size: 1.3rem; font-weight: 700; color: var(--primary); }
+    .doc-id .dates { font-size: .85rem; color: var(--dim); margin-top: 6px; line-height: 1.5; }
+
+    h2 { font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); margin: 28px 0 10px; }
+
+    .client { background: var(--soft); border-radius: 8px; padding: 14px 16px; line-height: 1.6; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; font-size: .8rem; color: var(--dim); font-weight: 600; padding: 10px 8px; border-bottom: 1px solid var(--line); }
+    td { padding: 14px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    td.valor, th.valor { text-align: right; white-space: nowrap; }
+    td small { color: var(--dim); }
+
+    .total { display: flex; justify-content: flex-end; margin-top: 18px; }
+    .total-box { background: var(--navy); color: #fff; border-radius: 10px; padding: 16px 22px; min-width: 260px; text-align: right; }
+    .total-box span { display: block; font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; opacity: .75; }
+    .total-box strong { font-size: 1.8rem; }
+
+    .info p { line-height: 1.6; white-space: pre-line; }
+    .info .row { display: flex; gap: 6px; }
+
+    .foot { margin-top: 36px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--dim); font-size: .8rem; text-align: center; }
+
+    .not-found { max-width: 800px; margin: 60px auto; text-align: center; color: var(--dim); }
+    .not-found a { color: var(--primary); }
+
+    @media (max-width: 600px) {
+      .sheet { padding: 22px 18px; }
+      .head { flex-direction: column; align-items: flex-start; }
+      .doc-id { text-align: left; }
+      .brand img { width: 64px; height: 64px; }
+      .total-box { width: 100%; }
+    }
+
+    @page { size: A4; margin: 14mm; }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .toolbar { display: none; }
+      .sheet { box-shadow: none; border-radius: 0; padding: 0; max-width: none; }
+      .client, .total-box { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="toolbar">
+    <a class="btn-back" href="historico.html"><i class="fas fa-arrow-left"></i> Voltar</a>
+    <div class="group">
+      <button class="btn-print" type="button" onclick="window.print()"><i class="fas fa-print"></i> Imprimir / Salvar PDF</button>
+      <a class="btn-whats" id="btn-whats" href="#" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i> Enviar no WhatsApp</a>
+    </div>
+  </div>
+
+  <div id="documento"></div>
+
+  <script src="script.js"></script>
+  <script>
+    const brl = v => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const soDigitos = v => String(v || '').replace(/\D/g, '');
+    const telWhats = v => {
+      const d = soDigitos(v);
+      if (!d) return '';
+      return d.length <= 11 ? `55${d}` : d;
+    };
+
+    // Orçamento fictício para demonstração: orcamento-cliente.html?exemplo
+    const ORCAMENTO_EXEMPLO = {
+      id: Date.now(),
+      cliente: 'Maria Souza',
+      telefone: '(11) 98765-4321',
+      produto: 'Vaso decorativo geométrico',
+      categoria: 'Decoração',
+      valorVenda: 89.9,
+      filamentosUsados: [{ id: 'ex', nome: 'PLA Azul' }],
+      prazo: '5 dias úteis',
+      observacoes: 'Altura de 15 cm, cor azul, acabamento lixado.'
+    };
+
+    function montarDocumento() {
+      reloadFromStorage();
+      const empresa = carregarEmpresa();
+      const params = new URLSearchParams(location.search);
+      const id = params.get('id');
+      const orc = params.has('exemplo')
+        ? ORCAMENTO_EXEMPLO
+        : orcamentos.find(o => String(o.id) === String(id));
+      const alvo = document.getElementById('documento');
+
+      if (!orc) {
+        document.querySelector('.toolbar .group').style.display = 'none';
+        alvo.innerHTML = `<div class="not-found"><p>Orçamento não encontrado.</p><p><a href="historico.html">Voltar ao histórico</a></p></div>`;
+        return;
+      }
+
+      const numero = String(orc.id).slice(-6);
+      const emissao = new Date(Number(orc.id));
+      const validade = new Date(emissao.getTime() + empresa.validadeDias * 86400000);
+      const fmtData = d => d.toLocaleDateString('pt-BR');
+
+      const materiais = (orc.filamentosUsados || []).map(item => {
+        const fil = filamentos.find(f => String(f.id) === String(item.id));
+        return fil ? [fil.tipo, fil.cor].filter(Boolean).join(' ') || item.nome : item.nome;
+      }).filter(Boolean);
+
+      const contatos = [
+        empresa.whatsapp && `<i class="fab fa-whatsapp"></i> ${esc(empresa.whatsapp)}`,
+        empresa.instagram && `<i class="fab fa-instagram"></i> ${esc(empresa.instagram)}`,
+        empresa.email && `<i class="fas fa-envelope"></i> ${esc(empresa.email)}`
+      ].filter(Boolean).join(' &nbsp;·&nbsp; ');
+
+      alvo.innerHTML = `
+        <article class="sheet">
+          <header class="head">
+            <div class="brand">
+              <img src="Logo LB impressões 3D.png" alt="Logo ${esc(empresa.nome)}">
+              <div>
+                <h1>${esc(empresa.nome)}</h1>
+                ${contatos ? `<div class="contacts">${contatos}</div>` : ''}
+              </div>
+            </div>
+            <div class="doc-id">
+              <div class="label">Orçamento</div>
+              <div class="num">Nº ${numero}</div>
+              <div class="dates">Emissão: ${fmtData(emissao)}<br>Válido até: ${fmtData(validade)}</div>
+            </div>
+          </header>
+
+          <h2>Cliente</h2>
+          <div class="client">
+            <strong>${esc(orc.cliente)}</strong>
+            ${orc.telefone ? `<br>${esc(orc.telefone)}` : ''}
+          </div>
+
+          <h2>Itens</h2>
+          <table>
+            <thead><tr><th>Descrição</th><th class="valor">Valor</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>
+                  <strong>${esc(orc.produto)}</strong>
+                  ${orc.categoria ? `<br><small>${esc(orc.categoria)}</small>` : ''}
+                  ${materiais.length ? `<br><small>Material: ${materiais.map(esc).join(', ')}</small>` : ''}
+                </td>
+                <td class="valor">${brl(orc.valorVenda)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="total">
+            <div class="total-box"><span>Total</span><strong>${brl(orc.valorVenda)}</strong></div>
+          </div>
+
+          <section class="info">
+            ${orc.prazo ? `<h2>Prazo de entrega</h2><p>${esc(orc.prazo)}</p>` : ''}
+            ${orc.observacoes ? `<h2>Observações</h2><p>${esc(orc.observacoes)}</p>` : ''}
+            ${empresa.condicoes ? `<h2>Condições de pagamento</h2><p>${esc(empresa.condicoes)}</p>` : ''}
+          </section>
+
+          <footer class="foot">Obrigado pela preferência! · ${esc(empresa.nome)}</footer>
+        </article>
+      `;
+
+      const mensagem = [
+        `Olá, ${orc.cliente}! Segue o orçamento nº ${numero} da ${empresa.nome}:`,
+        '',
+        `*${orc.produto}*`,
+        materiais.length ? `Material: ${materiais.join(', ')}` : null,
+        `*Total: ${brl(orc.valorVenda)}*`,
+        orc.prazo ? `Prazo de entrega: ${orc.prazo}` : null,
+        `Válido até ${fmtData(validade)}.`,
+        empresa.condicoes ? `\n${empresa.condicoes}` : null,
+        '',
+        'Qualquer dúvida, estou à disposição!'
+      ].filter(l => l !== null).join('\n');
+
+      const tel = telWhats(orc.telefone);
+      document.getElementById('btn-whats').href =
+        `https://wa.me/${tel}?text=${encodeURIComponent(mensagem)}`;
+
+      document.title = `Orçamento ${numero} - ${orc.cliente}`;
+    }
+
+    // O orçamento de exemplo pode ser aberto sem login
+    if (new URLSearchParams(location.search).has('exemplo')) document.documentElement.dataset.publico = 'sim';
+
+    // Chamados pelo nuvem.js quando os dados da conta estiverem carregados
+    iniciarPagina = montarDocumento;
+    atualizarTela = montarDocumento;
+  </script>
+  <script type="module" src="nuvem.js"></script>
+</body>
+
+</html>

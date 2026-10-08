@@ -48,6 +48,42 @@
           <h1>Backup</h1>
         </header>
 
+        <div class="form-container empresa-form">
+          <h3><i class="fas fa-store"></i> Dados da Empresa</h3>
+          <p class="hint">Aparecem no orçamento que você envia para o cliente.</p>
+          <div class="row">
+            <div class="input-group">
+              <label for="emp-nome">Nome da empresa</label>
+              <input type="text" id="emp-nome">
+            </div>
+            <div class="input-group">
+              <label for="emp-whatsapp">WhatsApp</label>
+              <input type="tel" id="emp-whatsapp" placeholder="(11) 99999-9999">
+            </div>
+          </div>
+          <div class="row">
+            <div class="input-group">
+              <label for="emp-instagram">Instagram</label>
+              <input type="text" id="emp-instagram" placeholder="@lbimpressoes3d">
+            </div>
+            <div class="input-group">
+              <label for="emp-email">E-mail</label>
+              <input type="email" id="emp-email">
+            </div>
+            <div class="input-group">
+              <label for="emp-validadeDias">Validade do orçamento (dias)</label>
+              <input type="number" id="emp-validadeDias" min="1">
+            </div>
+          </div>
+          <div class="input-group">
+            <label for="emp-condicoes">Condições de pagamento</label>
+            <textarea id="emp-condicoes" rows="3"></textarea>
+          </div>
+          <button class="btn-primary full-width" type="button" onclick="salvarEmpresa()">
+            <i class="fas fa-save"></i> Salvar dados da empresa
+          </button>
+        </div>
+
         <div class="split-view">
           <div class="form-container">
             <h3><i class="fas fa-download"></i> Exportar</h3>
@@ -68,6 +104,7 @@
   </div>
 
   <script src="script.js" defer></script>
+  <script type="module" src="nuvem.js"></script>
 </body>
 
 </html>

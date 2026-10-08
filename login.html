@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Entrar - LB impressões 3D</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+</head>
+
+<body class="login-page">
+  <main class="login-card">
+    <img src="Logo LB impressões 3D.png" alt="Logo LB impressões 3D" class="login-logo">
+    <h1>LB impressões 3D</h1>
+    <p class="login-sub">Entre para acessar o sistema</p>
+
+    <form id="form-login" novalidate>
+      <div class="input-group">
+        <label for="login-email">E-mail</label>
+        <input type="email" id="login-email" autocomplete="email" required>
+      </div>
+      <div class="input-group">
+        <label for="login-senha">Senha</label>
+        <input type="password" id="login-senha" autocomplete="current-password" minlength="6" required>
+      </div>
+
+      <p class="login-msg" id="login-msg" role="alert"></p>
+
+      <button type="submit" class="btn-primary full-width" id="btn-entrar">Entrar</button>
+    </form>
+
+    <div class="login-links">
+      <button type="button" class="link-btn" id="btn-esqueci">Esqueci minha senha</button>
+    </div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
+    import {
+      getAuth, onAuthStateChanged, signInWithEmailAndPassword, sendPasswordResetEmail
+    } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
+    import { firebaseConfig } from './firebase-config.js';
+
+    const auth = getAuth(initializeApp(firebaseConfig));
+    auth.languageCode = 'pt';
+
+    const $ = id => document.getElementById(id);
+    const voltar = new URLSearchParams(location.search).get('voltar') || 'dashboard.html';
+    // Só permite voltar para páginas do próprio site
+    const destino = /^[\w-]+\.html(\?[\w=&%-]*)?$/.test(voltar) ? voltar : 'dashboard.html';
+
+    const ERROS = {
+      'auth/invalid-credential': 'E-mail ou senha incorretos.',
+      'auth/invalid-email': 'E-mail inválido.',
+      'auth/missing-password': 'Digite a senha.',
+      'auth/too-many-requests': 'Muitas tentativas. Aguarde alguns minutos.',
+      'auth/network-request-failed': 'Sem conexão com a internet.',
+      'auth/operation-not-allowed': 'Login por e-mail ainda não foi ativado no Firebase.'
+    };
+
+    function mensagem(texto, ok = false) {
+      $('login-msg').textContent = texto;
+      $('login-msg').classList.toggle('ok', ok);
+    }
+
+    onAuthStateChanged(auth, usuario => {
+      if (usuario) location.replace(destino);
+    });
+
+    $('form-login').addEventListener('submit', async evento => {
+      evento.preventDefault();
+      const email = $('login-email').value.trim();
+      const senha = $('login-senha').value;
+      $('btn-entrar').disabled = true;
+      mensagem('');
+
+      try {
+        await signInWithEmailAndPassword(auth, email, senha);
+      } catch (erro) {
+        mensagem(ERROS[erro.code] || 'Não foi possível entrar. Tente novamente.');
+        $('btn-entrar').disabled = false;
+      }
+    });
+
+    $('btn-esqueci').addEventListener('click', async () => {
+      const email = $('login-email').value.trim();
+      if (!email) return mensagem('Digite seu e-mail acima e clique de novo em "Esqueci minha senha".');
+      try {
+        await sendPasswordResetEmail(auth, email);
+        mensagem('Enviamos um link para redefinir a senha no seu e-mail.', true);
+      } catch (erro) {
+        mensagem(ERROS[erro.code] || 'Não foi possível enviar o e-mail.');
+      }
+    });
+  </script>
+</body>
+
+</html>

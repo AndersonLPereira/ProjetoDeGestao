@@ -4,12 +4,41 @@
 const DB_KEY_FILAMENTOS = 'nexus_filamentos';
 const DB_KEY_MAQUINAS = 'nexus_maquinas';
 const DB_KEY_ORCAMENTOS = 'nexus_orcamentos';
+const DB_KEY_EMPRESA = 'nexus_empresa';
+
+const EMPRESA_PADRAO = {
+    nome: 'LB impressões 3D',
+    whatsapp: '',
+    instagram: '',
+    email: '',
+    validadeDias: 7,
+    condicoes: 'Pagamento: 50% na aprovação e 50% na entrega.\nPix, dinheiro ou cartão.'
+};
+
+function carregarEmpresa() {
+    try {
+        return { ...EMPRESA_PADRAO, ...(JSON.parse(localStorage.getItem(DB_KEY_EMPRESA)) || {}) };
+    } catch {
+        return { ...EMPRESA_PADRAO };
+    }
+}
+
+// Escapa texto digitado pelo usuário antes de inserir em HTML
+function esc(valor) {
+    return String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
 
 let filamentos = [];
 let maquinas = [];
 let orcamentos = [];
 
 let orcamentoAtualCalculado = null;
+
+// Grava no cache local e, se o login na nuvem estiver ativo, no Firestore (ver nuvem.js)
+function salvarDados(chave, valor) {
+    localStorage.setItem(chave, JSON.stringify(valor));
+    return window.nuvem ? window.nuvem.salvar(chave, valor) : Promise.resolve();
+}
 
 function reloadFromStorage() {
     filamentos = JSON.parse(localStorage.getItem(DB_KEY_FILAMENTOS)) || [];
@@ -82,7 +111,7 @@ function salvarMaquina() {
 
     const maquina = { id: Date.now(), nome, valor, potencia: potencia || 0, kwh: kwh || 0, vidaUtil };
     maquinas.push(maquina);
-    localStorage.setItem(DB_KEY_MAQUINAS, JSON.stringify(maquinas));
+    salvarDados(DB_KEY_MAQUINAS, maquinas);
 
     nomeEl.value = '';
     valorEl.value = '';
@@ -126,7 +155,7 @@ function deletarMaquina(index) {
 
     if (confirm("Excluir máquina?")) {
         maquinas.splice(index, 1);
-        localStorage.setItem(DB_KEY_MAQUINAS, JSON.stringify(maquinas));
+        salvarDados(DB_KEY_MAQUINAS, maquinas);
         renderizarMaquinas();
         if (document.getElementById('orc-maquina')) carregarOpcoesOrcamento();
     }
@@ -166,7 +195,7 @@ function salvarFilamento() {
     };
 
     filamentos.push(filamento);
-    localStorage.setItem(DB_KEY_FILAMENTOS, JSON.stringify(filamentos));
+    salvarDados(DB_KEY_FILAMENTOS, filamentos);
 
     marcaEl.value = '';
     if (corEl) corEl.value = '';
@@ -207,7 +236,7 @@ function deletarFilamento(index) {
 
     if (confirm("Excluir filamento?")) {
         filamentos.splice(index, 1);
-        localStorage.setItem(DB_KEY_FILAMENTOS, JSON.stringify(filamentos));
+        salvarDados(DB_KEY_FILAMENTOS, filamentos);
         renderizarFilamentos();
 
         const container = document.getElementById('filamentos-container');
@@ -347,7 +376,7 @@ function calcularEmTempoReal() {
     };
 }
 
-function salvarOrcamento() {
+async function salvarOrcamento() {
     calcularEmTempoReal();
 
     const cliente = document.getElementById('orc-cliente')?.value?.trim();
@@ -372,18 +401,20 @@ function salvarOrcamento() {
         valorVenda: orcamentoAtualCalculado.valorVenda,
         lucro: orcamentoAtualCalculado.lucro,
         filamentosUsados: orcamentoAtualCalculado.filamentosUsados,
+        prazo: document.getElementById('orc-prazo')?.value?.trim() || '',
+        observacoes: document.getElementById('orc-obs')?.value?.trim() || '',
         status: 'Pendente'
     };
 
     orcamentos.unshift(novoOrcamento);
-    localStorage.setItem(DB_KEY_ORCAMENTOS, JSON.stringify(orcamentos));
+    await salvarDados(DB_KEY_ORCAMENTOS, orcamentos);
     alert("Salvo no Histórico!");
 
     if (document.getElementById('orc-cliente')) document.getElementById('orc-cliente').value = '';
     if (document.getElementById('orc-produto')) document.getElementById('orc-produto').value = '';
     if (document.getElementById('orc-telefone')) document.getElementById('orc-telefone').value = '';
 
-    window.location.href = "/ProjetoDeGestao/Telas/historico.html";
+    window.location.href = "historico.html";
 }
 
 // =====================
@@ -404,9 +435,11 @@ function renderizarHistorico() {
         if (orc.status === 'Cancelado') badgeClass = 'status-cancelado';
         if (orc.status === 'Pessoal') badgeClass = 'status-pessoal';
 
-        let botoes = '';
+        let botoes = `
+        <a class="action-btn btn-quote" href="orcamento-cliente.html?id=${orc.id}" title="Orçamento para o cliente"><i class="fas fa-file-invoice"></i></a>
+      `;
         if (orc.status === 'Pendente') {
-            botoes = `
+            botoes += `
         <button class="action-btn btn-approve" type="button" onclick="mudarStatus(${index}, 'Aprovado')"><i class="fas fa-check"></i></button>
         <button class="action-btn btn-personal" type="button" onclick="mudarStatus(${index}, 'Pessoal')"><i class="fas fa-user"></i></button>
         <button class="action-btn btn-cancel" type="button" onclick="mudarStatus(${index}, 'Cancelado')"><i class="fas fa-times"></i></button>
@@ -417,8 +450,8 @@ function renderizarHistorico() {
       <tr>
         <td>${orc.data}</td>
         <td>
-          <strong>${orc.produto}</strong><br>
-          <small>${orc.cliente}</small>
+          <strong>${esc(orc.produto)}</strong><br>
+          <small>${esc(orc.cliente)}</small>
         </td>
         <td>
           <small>Custo: R$${Number(orc.custoTotal || 0).toFixed(2)}</small><br>
@@ -457,11 +490,11 @@ function mudarStatus(index, novoStatus) {
             }
         });
 
-        localStorage.setItem(DB_KEY_FILAMENTOS, JSON.stringify(filamentos));
+        salvarDados(DB_KEY_FILAMENTOS, filamentos);
     }
 
     orc.status = novoStatus;
-    localStorage.setItem(DB_KEY_ORCAMENTOS, JSON.stringify(orcamentos));
+    salvarDados(DB_KEY_ORCAMENTOS, orcamentos);
 
     renderizarHistorico();
     atualizarDashboard();
@@ -544,7 +577,7 @@ function gerarBackup() {
     const out = document.getElementById('backup-output');
     if (!out) return;
 
-    const dados = { filamentos, maquinas, orcamentos };
+    const dados = { filamentos, maquinas, orcamentos, empresa: carregarEmpresa() };
     out.value = encodeBase64Utf8(JSON.stringify(dados));
 }
 
@@ -566,7 +599,7 @@ async function copiarBackup() {
     }
 }
 
-function restaurarBackup() {
+async function restaurarBackup() {
     const input = document.getElementById('backup-input');
     if (!input) return;
 
@@ -577,9 +610,12 @@ function restaurarBackup() {
         try {
             const dados = JSON.parse(decodeBase64Utf8(codigo));
 
-            localStorage.setItem(DB_KEY_FILAMENTOS, JSON.stringify(dados.filamentos || []));
-            localStorage.setItem(DB_KEY_MAQUINAS, JSON.stringify(dados.maquinas || []));
-            localStorage.setItem(DB_KEY_ORCAMENTOS, JSON.stringify(dados.orcamentos || []));
+            await Promise.all([
+                salvarDados(DB_KEY_FILAMENTOS, dados.filamentos || []),
+                salvarDados(DB_KEY_MAQUINAS, dados.maquinas || []),
+                salvarDados(DB_KEY_ORCAMENTOS, dados.orcamentos || []),
+                dados.empresa ? salvarDados(DB_KEY_EMPRESA, dados.empresa) : null
+            ]);
 
             alert("Restaurado!");
             location.reload();
@@ -590,9 +626,34 @@ function restaurarBackup() {
 }
 
 // =====================
+// DADOS DA EMPRESA
+// =====================
+const CAMPOS_EMPRESA = ['nome', 'whatsapp', 'instagram', 'email', 'validadeDias', 'condicoes'];
+
+function preencherFormEmpresa() {
+    const empresa = carregarEmpresa();
+    CAMPOS_EMPRESA.forEach(campo => {
+        const el = document.getElementById(`emp-${campo}`);
+        if (el) el.value = empresa[campo] ?? '';
+    });
+}
+
+function salvarEmpresa() {
+    const empresa = carregarEmpresa();
+    CAMPOS_EMPRESA.forEach(campo => {
+        const el = document.getElementById(`emp-${campo}`);
+        if (el) empresa[campo] = el.value.trim();
+    });
+    empresa.validadeDias = parseInt(empresa.validadeDias, 10) || EMPRESA_PADRAO.validadeDias;
+    salvarDados(DB_KEY_EMPRESA, empresa);
+    alert("Dados da empresa salvos!");
+}
+
+// =====================
 // INIT UNIVERSAL (multi-página)
 // =====================
-window.addEventListener('load', () => {
+// Chamado uma vez quando os dados estão prontos (nuvem.js, ou no load se a nuvem não estiver ativa)
+function iniciarPagina() {
     reloadFromStorage();
     setActiveNavLink();
 
@@ -610,19 +671,36 @@ window.addEventListener('load', () => {
         const mes = String(hoje.getMonth() + 1).padStart(2, '0');
         const ano = hoje.getFullYear();
         filtro.value = `${ano}-${mes}`;
-        atualizarDashboard();
     }
 
     // Orçamento
     if (document.getElementById('orc-maquina')) {
-        carregarOpcoesOrcamento();
         const container = document.getElementById('filamentos-container');
         if (container && container.children.length === 0) adicionarLinhaFilamento(true);
+    }
+
+    // Dados da empresa
+    if (document.getElementById('emp-nome')) preencherFormEmpresa();
+
+    atualizarTela();
+}
+
+// Redesenha o que depende dos dados; chamado de novo quando chegam alterações de outro aparelho
+function atualizarTela() {
+    reloadFromStorage();
+
+    if (document.getElementById('dash-filtro-mes')) atualizarDashboard();
+
+    if (document.getElementById('orc-maquina')) {
+        carregarOpcoesOrcamento();
         calcularEmTempoReal();
     }
 
-    // Tabelas
     if (document.querySelector('#tabela-maquinas tbody')) renderizarMaquinas();
     if (document.querySelector('#tabela-filamentos tbody')) renderizarFilamentos();
     if (document.querySelector('#tabela-historico tbody')) renderizarHistorico();
+}
+
+window.addEventListener('load', () => {
+    if (!window.NUVEM_ATIVA) iniciarPagina();
 });

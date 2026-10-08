@@ -76,6 +76,16 @@
             <button class="btn-secondary btn-sm full-width" onclick="adicionarLinhaFilamento()">+ Adicionar
               filamento</button>
 
+            <h3>Para o Cliente</h3>
+            <div class="input-group">
+              <label>Prazo de entrega</label>
+              <input type="text" id="orc-prazo" placeholder="Ex.: 5 dias úteis">
+            </div>
+            <div class="input-group">
+              <label>Observações (aparecem no orçamento do cliente)</label>
+              <textarea id="orc-obs" rows="2" placeholder="Ex.: Cor azul, acabamento lixado"></textarea>
+            </div>
+
             <h3>Custos & Margens</h3>
             <div class="row">
               <div class="input-group">
@@ -128,6 +138,7 @@
   </div>
 
   <script src="script.js" defer></script>
+  <script type="module" src="nuvem.js"></script>
   <script>
     // prepara select e primeira linha de filamento
     if (typeof initOrcamentoPage === "function") initOrcamentoPage();
