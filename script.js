@@ -6,6 +6,7 @@ const DB_KEY_MAQUINAS = 'nexus_maquinas';
 const DB_KEY_ORCAMENTOS = 'nexus_orcamentos';
 const DB_KEY_EMPRESA = 'nexus_empresa';
 const DB_KEY_CLIENTES = 'nexus_clientes';
+const DB_KEY_TAREFAS = 'nexus_tarefas';
 
 const EMPRESA_PADRAO = {
     nome: 'LB impressões 3D',
@@ -141,6 +142,36 @@ function seloPagamento(orc) {
     return `<span class="pag-badge pag-parcial">Falta ${brl(faltaPagar(orc))}</span>`;
 }
 
+// Aceita só links http(s); "makerworld.com/..." vira "https://makerworld.com/..."
+function linkSeguro(url) {
+    const texto = String(url || '').trim();
+    if (!texto) return '';
+    const comProtocolo = /^https?:\/\//i.test(texto) ? texto : `https://${texto}`;
+    try {
+        const u = new URL(comProtocolo);
+        return /^https?:$/.test(u.protocol) && u.hostname.includes('.') ? u.href : '';
+    } catch {
+        return '';
+    }
+}
+
+// Nome curto do site do modelo para o botão
+function siteDoLink(url) {
+    try {
+        const host = new URL(url).hostname.replace(/^www\./, '');
+        const NOMES = { 'makerworld.com': 'MakerWorld', 'printables.com': 'Printables', 'thingiverse.com': 'Thingiverse', 'cults3d.com': 'Cults3D', 'thangs.com': 'Thangs' };
+        return NOMES[host] || host;
+    } catch {
+        return 'Modelo';
+    }
+}
+
+function botaoModelo(url, comTexto = true) {
+    const link = linkSeguro(url);
+    if (!link) return '';
+    return `<a class="action-btn btn-modelo${comTexto ? ' com-texto' : ''}" href="${esc(link)}" target="_blank" rel="noopener noreferrer" title="Abrir o arquivo do modelo (${esc(siteDoLink(link))})"><i class="fas fa-cube"></i>${comTexto ? ` ${esc(siteDoLink(link))}` : ''}</a>`;
+}
+
 function hojeBR() {
     return new Date().toLocaleDateString('pt-BR');
 }
@@ -157,6 +188,7 @@ let filamentos = [];
 let maquinas = [];
 let orcamentos = [];
 let clientes = [];
+let tarefas = [];
 
 let orcamentoAtualCalculado = null;
 
@@ -171,6 +203,7 @@ function reloadFromStorage() {
     maquinas = JSON.parse(localStorage.getItem(DB_KEY_MAQUINAS)) || [];
     orcamentos = JSON.parse(localStorage.getItem(DB_KEY_ORCAMENTOS)) || [];
     clientes = JSON.parse(localStorage.getItem(DB_KEY_CLIENTES)) || [];
+    tarefas = JSON.parse(localStorage.getItem(DB_KEY_TAREFAS)) || [];
 }
 
 // =====================
@@ -657,6 +690,8 @@ async function salvarOrcamento() {
 
     if (!cliente || !produto) return avisar("Preencha o cliente e o produto.", "erro");
     if (!maquinaId) return avisar("Selecione a impressora.", "erro");
+    const linkDigitado = document.getElementById('orc-link')?.value?.trim();
+    if (linkDigitado && !linkSeguro(linkDigitado)) return avisar("O link do modelo não parece válido.", "erro");
     if (!orcamentoAtualCalculado) return avisar("Erro no cálculo.", "erro");
 
     reloadFromStorage();
@@ -693,6 +728,7 @@ async function salvarOrcamento() {
         valorVenda: orcamentoAtualCalculado.valorVenda,
         lucro: orcamentoAtualCalculado.lucro,
         filamentosUsados: orcamentoAtualCalculado.filamentosUsados,
+        link: linkSeguro(document.getElementById('orc-link')?.value),
         prazo: document.getElementById('orc-prazo')?.value?.trim() || '',
         observacoes: document.getElementById('orc-obs')?.value?.trim() || '',
         status: 'Pendente'
@@ -700,7 +736,14 @@ async function salvarOrcamento() {
 
     orcamentos.unshift(novoOrcamento);
     await salvarDados(DB_KEY_ORCAMENTOS, orcamentos);
-    avisarDepois("Orçamento salvo!");
+    const tarefaOrigem = tarefas.find(t => String(t.id) === new URLSearchParams(location.search).get('tarefa'));
+    if (tarefaOrigem) {
+        tarefaOrigem.concluida = true;
+        tarefaOrigem.concluidaEm = Date.now();
+        tarefaOrigem.orcamentoId = novoOrcamento.id;
+        await salvarDados(DB_KEY_TAREFAS, tarefas);
+    }
+    avisarDepois(tarefaOrigem ? "Orçamento salvo! Tarefa concluída." : "Orçamento salvo!");
 
     if (document.getElementById('orc-cliente')) document.getElementById('orc-cliente').value = '';
     if (document.getElementById('orc-produto')) document.getElementById('orc-produto').value = '';
@@ -730,6 +773,7 @@ function renderizarHistorico() {
         <button class="action-btn btn-approve com-texto" type="button" title="Aprovar venda (desconta o filamento do estoque)" onclick="mudarStatus(${index}, 'Aprovado')"><i class="fas fa-check"></i> Aprovar</button>`;
         }
         botoes += `
+        ${botaoModelo(orc.link, false)}
         <a class="action-btn btn-quote" href="orcamento-cliente.html?id=${orc.id}" title="Orçamento para o cliente"><i class="fas fa-file-invoice"></i></a>`;
         if (orc.status === 'Pendente') {
             botoes += `
@@ -919,6 +963,8 @@ function atualizarDashboard() {
             : '<li class="empty-msg">Nenhum orçamento ainda.</li>';
     }
 
+    renderizarTarefasPainel();
+
     // Rolos com menos estoque primeiro
     const estoque = document.getElementById('dash-estoque');
     if (estoque) {
@@ -968,7 +1014,7 @@ function gerarBackup() {
     const out = document.getElementById('backup-output');
     if (!out) return;
 
-    const dados = { filamentos, maquinas, orcamentos, clientes, empresa: carregarEmpresa() };
+    const dados = { filamentos, maquinas, orcamentos, clientes, tarefas, empresa: carregarEmpresa() };
     out.value = encodeBase64Utf8(JSON.stringify(dados));
 }
 
@@ -1006,6 +1052,7 @@ async function restaurarBackup() {
                 salvarDados(DB_KEY_MAQUINAS, dados.maquinas || []),
                 salvarDados(DB_KEY_ORCAMENTOS, dados.orcamentos || []),
                 salvarDados(DB_KEY_CLIENTES, dados.clientes || []),
+                salvarDados(DB_KEY_TAREFAS, dados.tarefas || []),
                 dados.empresa ? salvarDados(DB_KEY_EMPRESA, dados.empresa) : null
             ]);
 
@@ -1193,6 +1240,7 @@ function cartaoProducao(o, i) {
         <div class="cartao-acoes">
           ${anterior ? `<button type="button" class="action-btn" title="Voltar para ${anterior.nome}" onclick="moverProducao(${o.id}, -1)"><i class="fas fa-arrow-left"></i></button>` : '<span></span>'}
           <div>
+            ${botaoModelo(o.link, false)}
             <button type="button" class="action-btn btn-pay" title="Pagamentos" onclick="abrirPagamentos(${o.id})"><i class="fas fa-hand-holding-dollar"></i></button>
             ${etapaDe(o) === 'pronto' && o.telefone ? `<a class="action-btn btn-whats-mini" title="Avisar o cliente no WhatsApp" href="${avisoPronto}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i></a>` : ''}
           </div>
@@ -1371,6 +1419,320 @@ function renderizarClientes() {
 }
 
 // =====================
+// TAREFAS (orçamentos a fazer, tarefas, impressões)
+// =====================
+const TIPOS_TAREFA = {
+    orcamento: { nome: 'Orçamento a fazer', curto: 'Orçamento', icone: 'fa-file-invoice-dollar', adicionado: 'Orçamento a fazer adicionado!' },
+    tarefa: { nome: 'Tarefa', curto: 'Tarefa', icone: 'fa-list-check', adicionado: 'Tarefa adicionada!' },
+    impressao: { nome: 'Impressão a fazer', curto: 'Impressão', icone: 'fa-print', adicionado: 'Impressão adicionada!' }
+};
+const PRIORIDADES = { alta: { nome: 'Alta', peso: 0 }, media: { nome: 'Média', peso: 1 }, baixa: { nome: 'Baixa', peso: 2 } };
+
+let tarefaEditandoId = null;
+let tipoTarefaAtual = 'tarefa';
+let filtroTarefas = 'pendentes';
+
+// Data de hoje no formato do campo de data (AAAA-MM-DD)
+function hojeISO() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function situacaoPrazo(t) {
+    if (!t.prazo || t.concluida) return '';
+    const hoje = hojeISO();
+    if (t.prazo < hoje) return 'atrasada';
+    if (t.prazo === hoje) return 'hoje';
+    return '';
+}
+
+function textoPrazo(t) {
+    if (!t.prazo) return '';
+    const situacao = situacaoPrazo(t);
+    if (situacao === 'hoje') return 'Hoje';
+    const [a, m, d] = t.prazo.split('-');
+    const amanha = new Date();
+    amanha.setDate(amanha.getDate() + 1);
+    if (t.prazo === `${amanha.getFullYear()}-${String(amanha.getMonth() + 1).padStart(2, '0')}-${String(amanha.getDate()).padStart(2, '0')}` && !t.concluida) return 'Amanhã';
+    return `${d}/${m}/${a}`;
+}
+
+function ordenarTarefas(lista) {
+    return [...lista].sort((a, b) => {
+        if (a.concluida !== b.concluida) return a.concluida ? 1 : -1;
+        if (a.concluida) return Number(b.concluidaEm || 0) - Number(a.concluidaEm || 0);
+        const pa = a.prazo || '9999-99-99', pb = b.prazo || '9999-99-99';
+        if (pa !== pb) return pa < pb ? -1 : 1;
+        return (PRIORIDADES[a.prioridade]?.peso ?? 1) - (PRIORIDADES[b.prioridade]?.peso ?? 1);
+    });
+}
+
+function escolherTipoTarefa(tipo) {
+    tipoTarefaAtual = tipo;
+    document.querySelectorAll('.tipo-opcao').forEach(b => b.classList.toggle('ativo', b.dataset.tipo === tipo));
+    const form = document.getElementById('form-tarefa');
+    if (form) form.dataset.tipo = tipo;
+
+    const titulo = document.getElementById('tar-titulo');
+    const placeholders = {
+        orcamento: 'O que o cliente pediu? Ex.: 10 chaveiros personalizados',
+        tarefa: 'Ex.: Comprar filamento PETG preto',
+        impressao: 'O que imprimir? Ex.: Suporte de headset'
+    };
+    if (titulo) titulo.placeholder = placeholders[tipo];
+
+    // Listas de impressoras e filamentos para impressões
+    const maq = document.getElementById('tar-impressora');
+    if (maq && tipo === 'impressao') {
+        const atual = maq.value;
+        maq.innerHTML = '<option value="">Qualquer impressora</option>' + maquinas.map(m => `<option value="${m.id}">${esc(m.nome)}</option>`).join('');
+        maq.value = atual;
+    }
+    const fil = document.getElementById('tar-filamento');
+    if (fil && tipo === 'impressao') {
+        const atual = fil.value;
+        fil.innerHTML = '<option value="">A definir</option>' + filamentos.map(f => `<option value="${f.id}">${esc([f.tipo, f.cor, f.marca].filter(Boolean).join(' · '))}</option>`).join('');
+        fil.value = atual;
+    }
+
+    const lista = document.getElementById('lista-clientes-tarefa');
+    if (lista) lista.innerHTML = clientes.map(c => `<option value="${esc(c.nome)}"></option>`).join('');
+}
+
+function salvarTarefa() {
+    reloadFromStorage();
+    const valor = id => (document.getElementById(id)?.value || '').trim();
+
+    const titulo = valor('tar-titulo');
+    if (!titulo) return avisar('Descreva o que precisa ser feito.', 'erro');
+    if (tipoTarefaAtual === 'orcamento' && !valor('tar-cliente')) return avisar('Informe o cliente do orçamento.', 'erro');
+    if (valor('tar-link') && !linkSeguro(valor('tar-link'))) return avisar('O link do modelo não parece válido.', 'erro');
+
+    const dados = {
+        tipo: tipoTarefaAtual,
+        titulo,
+        cliente: valor('tar-cliente'),
+        prazo: valor('tar-prazo'),
+        prioridade: valor('tar-prioridade') || 'media',
+        descricao: valor('tar-descricao'),
+        link: linkSeguro(valor('tar-link')),
+        impressoraId: tipoTarefaAtual === 'impressao' ? valor('tar-impressora') : '',
+        filamentoId: tipoTarefaAtual === 'impressao' ? valor('tar-filamento') : '',
+        quantidade: Math.max(1, parseInt(valor('tar-quantidade'), 10) || 1)
+    };
+
+    if (tarefaEditandoId !== null) {
+        const t = tarefas.find(x => String(x.id) === String(tarefaEditandoId));
+        if (t) Object.assign(t, dados);
+        salvarDados(DB_KEY_TAREFAS, tarefas);
+        cancelarEdicaoTarefa();
+        return avisar('Tarefa atualizada!');
+    }
+
+    tarefas.push({ id: Date.now(), ...dados, concluida: false, criadaEm: Date.now() });
+    salvarDados(DB_KEY_TAREFAS, tarefas);
+    limparFormTarefa();
+    if (filtroTarefas === 'concluidas') filtroTarefas = 'pendentes';
+    renderizarTarefas();
+    atualizarContadorTarefas();
+    avisar(TIPOS_TAREFA[dados.tipo].adicionado);
+}
+
+function limparFormTarefa() {
+    ['tar-titulo', 'tar-cliente', 'tar-prazo', 'tar-descricao', 'tar-link', 'tar-impressora', 'tar-filamento'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    const prio = document.getElementById('tar-prioridade');
+    if (prio) prio.value = 'media';
+    const qtd = document.getElementById('tar-quantidade');
+    if (qtd) qtd.value = '1';
+}
+
+function editarTarefa(id) {
+    reloadFromStorage();
+    const t = tarefas.find(x => String(x.id) === String(id));
+    if (!t) return;
+
+    tarefaEditandoId = t.id;
+    escolherTipoTarefa(t.tipo);
+    const valores = {
+        'tar-titulo': t.titulo, 'tar-cliente': t.cliente, 'tar-prazo': t.prazo, 'tar-prioridade': t.prioridade || 'media',
+        'tar-descricao': t.descricao, 'tar-link': t.link, 'tar-impressora': t.impressoraId, 'tar-filamento': t.filamentoId, 'tar-quantidade': t.quantidade || 1
+    };
+    Object.entries(valores).forEach(([campo, v]) => {
+        const el = document.getElementById(campo);
+        if (el) el.value = v ?? '';
+    });
+
+    const form = document.getElementById('form-tarefa');
+    form.classList.add('editando');
+    document.getElementById('tar-form-titulo').innerHTML = '<i class="fas fa-pen"></i> Editando item';
+    document.getElementById('tar-btn-salvar').innerHTML = '<i class="fas fa-check"></i> Salvar alterações';
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    renderizarTarefas();
+}
+
+function cancelarEdicaoTarefa() {
+    tarefaEditandoId = null;
+    limparFormTarefa();
+    const form = document.getElementById('form-tarefa');
+    if (form) {
+        form.classList.remove('editando');
+        document.getElementById('tar-form-titulo').innerHTML = '<i class="fas fa-plus-circle"></i> Adicionar';
+        document.getElementById('tar-btn-salvar').innerHTML = '<i class="fas fa-plus"></i> Adicionar';
+    }
+    renderizarTarefas();
+    atualizarContadorTarefas();
+}
+
+function alternarTarefa(id) {
+    reloadFromStorage();
+    const t = tarefas.find(x => String(x.id) === String(id));
+    if (!t) return;
+    t.concluida = !t.concluida;
+    t.concluidaEm = t.concluida ? Date.now() : null;
+    salvarDados(DB_KEY_TAREFAS, tarefas);
+    avisar(t.concluida ? 'Concluída! 🎉' : 'Voltou para pendentes.');
+    atualizarTela();
+}
+
+function excluirTarefa(id) {
+    reloadFromStorage();
+    const t = tarefas.find(x => String(x.id) === String(id));
+    if (!t || !confirm(`Excluir "${t.titulo}"?`)) return;
+    if (String(t.id) === String(tarefaEditandoId)) cancelarEdicaoTarefa();
+    tarefas = tarefas.filter(x => String(x.id) !== String(id));
+    salvarDados(DB_KEY_TAREFAS, tarefas);
+    avisar('Item excluído.');
+    renderizarTarefas();
+    atualizarContadorTarefas();
+}
+
+function limparConcluidas() {
+    reloadFromStorage();
+    const qtd = tarefas.filter(t => t.concluida).length;
+    if (!qtd || !confirm(`Apagar ${qtd} item(ns) concluído(s)?`)) return;
+    tarefas = tarefas.filter(t => !t.concluida);
+    salvarDados(DB_KEY_TAREFAS, tarefas);
+    avisar('Concluídas apagadas.');
+    renderizarTarefas();
+}
+
+function filtrarTarefas(filtro) {
+    filtroTarefas = filtro;
+    renderizarTarefas();
+}
+
+function itemTarefaHTML(t, compacto = false) {
+    const tipo = TIPOS_TAREFA[t.tipo] || TIPOS_TAREFA.tarefa;
+    const situacao = situacaoPrazo(t);
+    const prazo = textoPrazo(t);
+    const maq = maquinas.find(m => String(m.id) === String(t.impressoraId));
+    const fil = filamentos.find(f => String(f.id) === String(t.filamentoId));
+
+    const detalhes = [
+        t.cliente && `<span><i class="fas fa-user"></i> ${esc(t.cliente)}</span>`,
+        t.tipo === 'impressao' && t.quantidade > 1 && `<span><i class="fas fa-cubes"></i> ${t.quantidade} un.</span>`,
+        t.tipo === 'impressao' && maq && `<span><i class="fas fa-print"></i> ${esc(maq.nome)}</span>`,
+        t.tipo === 'impressao' && fil && `<span><span class="swatch swatch-mini" style="background: ${corDoFilamento(fil.cor)};"></span> ${esc([fil.tipo, fil.cor].filter(Boolean).join(' '))}</span>`,
+        prazo && `<span class="prazo ${situacao}"><i class="far fa-calendar"></i> ${situacao === 'atrasada' ? 'Atrasada · ' : ''}${prazo}</span>`
+    ].filter(Boolean).join('');
+
+    return `
+      <li class="tarefa ${t.concluida ? 'feita' : ''} prio-${t.prioridade || 'media'} ${String(t.id) === String(tarefaEditandoId) ? 'linha-editando' : ''}">
+        <button type="button" class="check" title="${t.concluida ? 'Marcar como pendente' : 'Marcar como concluída'}" onclick="alternarTarefa(${t.id})"><i class="fas fa-check"></i></button>
+        <div class="tarefa-corpo">
+          <div class="tarefa-titulo">
+            <span class="tipo-chip tipo-${t.tipo}"><i class="fas ${tipo.icone}"></i> ${tipo.curto}</span>
+            <strong>${esc(t.titulo)}</strong>
+          </div>
+          ${detalhes ? `<div class="tarefa-detalhes">${detalhes}</div>` : ''}
+          ${!compacto && t.descricao ? `<p class="tarefa-desc">${esc(t.descricao)}</p>` : ''}
+        </div>
+        ${compacto ? (t.link ? `<div class="tarefa-acoes">${botaoModelo(t.link, false)}</div>` : '') : `
+        <div class="tarefa-acoes">
+          ${botaoModelo(t.link)}
+          ${t.tipo === 'orcamento' && !t.concluida ? `<a class="action-btn btn-approve com-texto" href="orcamento.html?tarefa=${t.id}" title="Abrir o orçamento já preenchido"><i class="fas fa-calculator"></i> Fazer orçamento</a>` : ''}
+          ${t.orcamentoId ? `<a class="action-btn btn-quote" href="orcamento-cliente.html?id=${t.orcamentoId}" title="Ver o orçamento feito"><i class="fas fa-file-invoice"></i></a>` : ''}
+          <button type="button" class="action-btn btn-edit" title="Editar" onclick="editarTarefa(${t.id})"><i class="fas fa-pen"></i></button>
+          <button type="button" class="action-btn btn-delete" title="Excluir" onclick="excluirTarefa(${t.id})"><i class="fas fa-trash-can"></i></button>
+        </div>`}
+      </li>`;
+}
+
+function renderizarTarefas() {
+    const lista = document.getElementById('lista-tarefas');
+    if (!lista) return;
+    reloadFromStorage();
+
+    const pendentes = tarefas.filter(t => !t.concluida);
+    const contagem = {
+        pendentes: pendentes.length,
+        orcamento: pendentes.filter(t => t.tipo === 'orcamento').length,
+        tarefa: pendentes.filter(t => t.tipo === 'tarefa').length,
+        impressao: pendentes.filter(t => t.tipo === 'impressao').length,
+        atrasadas: pendentes.filter(t => situacaoPrazo(t) === 'atrasada').length,
+        concluidas: tarefas.length - pendentes.length
+    };
+    document.querySelectorAll('.filtro-tarefa').forEach(b => {
+        b.classList.toggle('ativo', b.dataset.filtro === filtroTarefas);
+        const n = b.querySelector('b');
+        if (n) n.textContent = contagem[b.dataset.filtro] ?? '';
+    });
+
+    const filtros = {
+        pendentes: t => !t.concluida,
+        orcamento: t => !t.concluida && t.tipo === 'orcamento',
+        tarefa: t => !t.concluida && t.tipo === 'tarefa',
+        impressao: t => !t.concluida && t.tipo === 'impressao',
+        atrasadas: t => situacaoPrazo(t) === 'atrasada',
+        concluidas: t => t.concluida
+    };
+    const itens = ordenarTarefas(tarefas.filter(filtros[filtroTarefas] || filtros.pendentes));
+
+    const botaoLimpar = document.getElementById('btn-limpar-concluidas');
+    if (botaoLimpar) botaoLimpar.style.display = filtroTarefas === 'concluidas' && itens.length ? '' : 'none';
+
+    const VAZIO = {
+        pendentes: 'Tudo em dia! Nada pendente.',
+        concluidas: 'Nenhum item concluído ainda.',
+        atrasadas: 'Nenhum item atrasado. 👏'
+    };
+    lista.innerHTML = itens.length
+        ? itens.map(t => itemTarefaHTML(t)).join('')
+        : `<li class="tarefas-vazio"><i class="fas fa-mug-hot"></i>${VAZIO[filtroTarefas] || 'Nada por aqui.'}</li>`;
+}
+
+// Painel: próximos itens pendentes
+function renderizarTarefasPainel() {
+    const lista = document.getElementById('dash-tarefas');
+    if (!lista) return;
+    const proximas = ordenarTarefas(tarefas.filter(t => !t.concluida)).slice(0, 5);
+    lista.innerHTML = proximas.length
+        ? proximas.map(t => itemTarefaHTML(t, true)).join('')
+        : '<li class="tarefas-vazio"><i class="fas fa-mug-hot"></i>Nada pendente.</li>';
+}
+
+// Número de pendências ao lado de "Tarefas" no menu
+function atualizarContadorTarefas() {
+    const link = document.querySelector('.sidebar a[href="tarefas.html"]');
+    if (!link) return;
+    const pendentes = tarefas.filter(t => !t.concluida);
+    const atrasadas = pendentes.filter(t => situacaoPrazo(t) === 'atrasada').length;
+    let badge = link.querySelector('.nav-badge');
+    if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'nav-badge';
+        link.appendChild(badge);
+    }
+    badge.textContent = pendentes.length;
+    badge.hidden = !pendentes.length;
+    badge.classList.toggle('alerta', atrasadas > 0);
+    badge.title = atrasadas ? `${atrasadas} atrasada(s)` : `${pendentes.length} pendente(s)`;
+}
+
+// =====================
 // INIT UNIVERSAL (multi-página)
 // =====================
 // Chamado uma vez quando os dados estão prontos (nuvem.js, ou no load se a nuvem não estiver ativa)
@@ -1403,6 +1765,18 @@ function iniciarPagina() {
         const taxa = document.getElementById('orc-taxa');
         if (taxa) taxa.value = Number(carregarEmpresa().taxaVenda || 0);
 
+        // Vindo da tela de tarefas: orcamento.html?tarefa=<id>
+        const tarefa = tarefas.find(t => String(t.id) === new URLSearchParams(location.search).get('tarefa'));
+        if (tarefa) {
+            const cad = clientes.find(c => semAcento(c.nome) === semAcento(tarefa.cliente));
+            document.getElementById('orc-cliente').value = tarefa.cliente || '';
+            document.getElementById('orc-telefone').value = cad?.telefone || '';
+            document.getElementById('orc-produto').value = tarefa.titulo || '';
+            document.getElementById('orc-obs').value = tarefa.descricao || '';
+            document.getElementById('orc-link').value = tarefa.link || '';
+            if (tarefa.quantidade > 1) document.getElementById('orc-quantidade').value = tarefa.quantidade;
+        }
+
         // Vindo da tela de clientes: orcamento.html?cliente=<id>
         const cli = clientes.find(c => String(c.id) === new URLSearchParams(location.search).get('cliente'));
         if (cli) {
@@ -1413,6 +1787,9 @@ function iniciarPagina() {
 
     // Dados da empresa
     if (document.getElementById('emp-nome')) preencherFormEmpresa();
+
+    // Tarefas
+    if (document.getElementById('form-tarefa')) escolherTipoTarefa('tarefa');
 
     atualizarTela();
 }
@@ -1431,6 +1808,8 @@ function atualizarTela() {
 
     renderizarProducao();
     renderizarClientes();
+    renderizarTarefas();
+    atualizarContadorTarefas();
 
     if (document.querySelector('#tabela-maquinas tbody')) renderizarMaquinas();
     if (document.querySelector('#tabela-filamentos tbody')) renderizarFilamentos();

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#11141b" />
+  <title>Tarefas - LB impressões 3D</title>
+  <link rel="icon" type="image/png" href="Logo LB impressões 3D.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div class="overlay" onclick="toggleMenu()"></div>
+
+  <div class="mobile-header">
+    <button type="button" onclick="toggleMenu()" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
+    <span class="mobile-brand"><img src="Logo LB impressões 3D.png" alt="" /> LB impressões 3D</span>
+    <span style="width: 40px;"></span>
+  </div>
+
+  <div class="app-container">
+    <aside class="sidebar" id="sidebar">
+      <div class="logo-area">
+        <img src="Logo LB impressões 3D.png" alt="Logo LB impressões 3D" id="app-logo" />
+        <div class="brand-text">
+          <strong>LB impressões 3D</strong>
+          <span>Gestão de impressão</span>
+        </div>
+        <button class="close-menu-btn" type="button" onclick="toggleMenu()" aria-label="Fechar menu"><i class="fas fa-times"></i></button>
+      </div>
+
+      <nav>
+        <span class="nav-section">Operação</span>
+        <a href="dashboard.html" class="nav-link"><i class="fas fa-chart-pie"></i> Painel</a>
+        <a href="orcamento.html" class="nav-link"><i class="fas fa-calculator"></i> Novo orçamento</a>
+        <a href="historico.html" class="nav-link"><i class="fas fa-receipt"></i> Orçamentos e vendas</a>
+        <a href="tarefas.html" class="nav-link"><i class="fas fa-list-check"></i> Tarefas</a>
+        <a href="producao.html" class="nav-link"><i class="fas fa-layer-group"></i> Produção</a>
+
+        <span class="nav-section">Cadastros</span>
+        <a href="clientes.html" class="nav-link"><i class="fas fa-users"></i> Clientes</a>
+        <a href="filamentos.html" class="nav-link"><i class="fas fa-compact-disc"></i> Filamentos</a>
+        <a href="maquinas.html" class="nav-link"><i class="fas fa-print"></i> Impressoras</a>
+
+        <span class="nav-section">Sistema</span>
+        <a href="backup.html" class="nav-link"><i class="fas fa-sliders-h"></i> Empresa e backup</a>
+      </nav>
+    </aside>
+
+    <main class="content">
+      <section id="tarefas" class="section active-section">
+        <header class="page-header">
+          <div>
+            <h1><i class="fas fa-list-check"></i> Tarefas</h1>
+            <p>Orçamentos que você precisa fazer, tarefas do dia a dia e impressões pendentes</p>
+          </div>
+        </header>
+
+        <div class="form-container" id="form-tarefa" data-tipo="tarefa">
+          <h3 id="tar-form-titulo"><i class="fas fa-plus-circle"></i> Adicionar</h3>
+
+          <div class="tipo-seletor" role="group" aria-label="Tipo">
+            <button type="button" class="tipo-opcao" data-tipo="orcamento" onclick="escolherTipoTarefa('orcamento')"><i class="fas fa-file-invoice-dollar"></i> Orçamento a fazer</button>
+            <button type="button" class="tipo-opcao" data-tipo="tarefa" onclick="escolherTipoTarefa('tarefa')"><i class="fas fa-list-check"></i> Tarefa</button>
+            <button type="button" class="tipo-opcao" data-tipo="impressao" onclick="escolherTipoTarefa('impressao')"><i class="fas fa-print"></i> Impressão</button>
+          </div>
+
+          <div class="input-group">
+            <label for="tar-titulo">O que fazer</label>
+            <input type="text" id="tar-titulo" placeholder="Ex.: Comprar filamento PETG preto" onkeydown="if (event.key === 'Enter') salvarTarefa()" />
+          </div>
+
+          <div class="row">
+            <div class="input-group">
+              <label for="tar-cliente">Cliente <small class="hint so-tipo-tarefa">opcional</small></label>
+              <input type="text" id="tar-cliente" list="lista-clientes-tarefa" autocomplete="off" placeholder="Nome do cliente" />
+              <datalist id="lista-clientes-tarefa"></datalist>
+            </div>
+            <div class="input-group">
+              <label for="tar-prazo">Prazo</label>
+              <input type="date" id="tar-prazo" />
+            </div>
+            <div class="input-group">
+              <label for="tar-prioridade">Prioridade</label>
+              <select id="tar-prioridade">
+                <option value="alta">Alta</option>
+                <option value="media" selected>Média</option>
+                <option value="baixa">Baixa</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row so-impressao">
+            <div class="input-group">
+              <label for="tar-impressora">Impressora</label>
+              <select id="tar-impressora"></select>
+            </div>
+            <div class="input-group">
+              <label for="tar-filamento">Filamento</label>
+              <select id="tar-filamento"></select>
+            </div>
+            <div class="input-group" style="max-width: 140px;">
+              <label for="tar-quantidade">Quantidade</label>
+              <input type="number" id="tar-quantidade" value="1" min="1" />
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label for="tar-link">Link do modelo <small class="hint">MakerWorld, Printables, Thingiverse... para o arquivo não se perder</small></label>
+            <input type="url" id="tar-link" placeholder="https://makerworld.com/pt/models/..." />
+          </div>
+
+          <div class="input-group">
+            <label for="tar-descricao">Detalhes <small class="hint">medidas, cores, link do modelo, o que o cliente falou...</small></label>
+            <textarea id="tar-descricao" rows="2"></textarea>
+          </div>
+
+          <div class="form-acoes">
+            <button class="btn-primary" type="button" id="tar-btn-salvar" onclick="salvarTarefa()"><i class="fas fa-plus"></i> Adicionar</button>
+            <button class="btn-secondary so-edicao" type="button" onclick="cancelarEdicaoTarefa()"><i class="fas fa-xmark"></i> Cancelar edição</button>
+          </div>
+        </div>
+
+        <div class="filtros-tarefas">
+          <button type="button" class="filtro-tarefa" data-filtro="pendentes" onclick="filtrarTarefas('pendentes')">Pendentes <b></b></button>
+          <button type="button" class="filtro-tarefa" data-filtro="orcamento" onclick="filtrarTarefas('orcamento')"><i class="fas fa-file-invoice-dollar"></i> Orçamentos <b></b></button>
+          <button type="button" class="filtro-tarefa" data-filtro="tarefa" onclick="filtrarTarefas('tarefa')"><i class="fas fa-list-check"></i> Tarefas <b></b></button>
+          <button type="button" class="filtro-tarefa" data-filtro="impressao" onclick="filtrarTarefas('impressao')"><i class="fas fa-print"></i> Impressões <b></b></button>
+          <button type="button" class="filtro-tarefa filtro-alerta" data-filtro="atrasadas" onclick="filtrarTarefas('atrasadas')"><i class="fas fa-triangle-exclamation"></i> Atrasadas <b></b></button>
+          <button type="button" class="filtro-tarefa" data-filtro="concluidas" onclick="filtrarTarefas('concluidas')"><i class="fas fa-check"></i> Concluídas <b></b></button>
+          <button type="button" class="btn-secondary btn-sm" id="btn-limpar-concluidas" onclick="limparConcluidas()" style="display: none; margin: 0 0 0 auto;"><i class="fas fa-broom"></i> Apagar concluídas</button>
+        </div>
+
+        <ul class="lista-tarefas" id="lista-tarefas"></ul>
+      </section>
+    </main>
+  </div>
+
+  <script src="script.js" defer></script>
+  <script type="module" src="nuvem.js"></script>
+</body>
+
+</html>

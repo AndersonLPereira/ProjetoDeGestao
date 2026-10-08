@@ -18,7 +18,8 @@ const DOCUMENTOS = {
     nexus_maquinas: 'maquinas',
     nexus_orcamentos: 'orcamentos',
     nexus_empresa: 'empresa',
-    nexus_clientes: 'clientes'
+    nexus_clientes: 'clientes',
+    nexus_tarefas: 'tarefas'
 };
 const CHAVE_UID = 'nexus_uid';
 

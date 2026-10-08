@@ -981,3 +981,142 @@ tbody tr.linha-editando{ background:var(--primary-soft); }
 /* dicas dos rótulos em linha própria, campos alinhados pela base */
 label .hint{ display:block; font-weight:400; font-size:.74rem; color:var(--text-faint); margin-top:1px; }
 .row{ align-items:flex-end; }
+
+/* ===== TAREFAS ===== */
+.nav-badge{
+  margin-left:auto;
+  min-width:20px;
+  height:20px;
+  padding:0 6px;
+  border-radius:10px;
+  display:grid;
+  place-items:center;
+  font-size:.72rem;
+  font-weight:700;
+  background:var(--surface-2);
+  color:var(--text-dim);
+}
+.nav-badge.alerta{ background:var(--danger); color:#fff; }
+
+.tipo-seletor{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+.tipo-opcao{
+  flex:1;
+  min-width:150px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:11px 14px;
+  border-radius:var(--radius-sm);
+  border:1px solid var(--border-strong);
+  background:var(--field);
+  color:var(--text-dim);
+  font:600 .9rem var(--font);
+  cursor:pointer;
+  transition:.15s;
+}
+.tipo-opcao:hover{ color:var(--text); border-color:var(--text-faint); }
+.tipo-opcao.ativo{ background:var(--primary-soft); border-color:var(--primary); color:var(--primary-strong); }
+
+/* campos que só aparecem em impressões */
+#form-tarefa:not([data-tipo="impressao"]) .so-impressao{ display:none; }
+
+.filtros-tarefas{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+.filtro-tarefa{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:8px 13px;
+  border-radius:20px;
+  border:1px solid var(--border-strong);
+  background:var(--surface);
+  color:var(--text-dim);
+  font:500 .85rem var(--font);
+  cursor:pointer;
+}
+.filtro-tarefa b{ font-size:.75rem; padding:1px 7px; border-radius:10px; background:var(--surface-2); }
+.filtro-tarefa b:empty{ display:none; }
+.filtro-tarefa.ativo{ background:var(--primary); border-color:var(--primary); color:var(--on-primary); }
+.filtro-tarefa.ativo b{ background:rgba(0,0,0,.15); }
+.filtro-alerta:not(.ativo) i{ color:var(--danger); }
+
+.lista-tarefas{ list-style:none; display:flex; flex-direction:column; gap:10px; }
+.tarefa{
+  display:flex;
+  align-items:flex-start;
+  gap:14px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-left:3px solid var(--prio, var(--border-strong));
+  border-radius:var(--radius-sm);
+  padding:14px 16px;
+  box-shadow:var(--shadow);
+}
+.tarefa.prio-alta{ --prio:var(--danger); }
+.tarefa.prio-media{ --prio:var(--warning); }
+.tarefa.prio-baixa{ --prio:var(--info); }
+.tarefa.linha-editando{ background:var(--primary-soft); }
+.check{
+  width:26px;
+  height:26px;
+  margin-top:1px;
+  flex-shrink:0;
+  border-radius:50%;
+  border:2px solid var(--border-strong);
+  background:transparent;
+  color:transparent;
+  cursor:pointer;
+  display:grid;
+  place-items:center;
+  font-size:.75rem;
+  transition:.15s;
+}
+.check:hover{ border-color:var(--success); color:var(--success); }
+.tarefa.feita .check{ background:var(--success); border-color:var(--success); color:#06281a; }
+.tarefa.feita .tarefa-titulo strong{ text-decoration:line-through; color:var(--text-faint); }
+.tarefa.feita{ opacity:.75; }
+.tarefa-corpo{ flex:1; min-width:0; }
+.tarefa-titulo{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.tarefa-titulo strong{ font-size:.98rem; }
+.tipo-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:2px 8px;
+  border-radius:6px;
+  font-size:.7rem;
+  font-weight:600;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.tipo-orcamento{ background:var(--success-soft); color:var(--success); }
+.tipo-tarefa{ background:var(--info-soft); color:var(--info); }
+.tipo-impressao{ background:var(--primary-soft); color:var(--primary); }
+.tarefa-detalhes{ display:flex; gap:14px; flex-wrap:wrap; margin-top:6px; font-size:.82rem; color:var(--text-dim); }
+.tarefa-detalhes span{ display:inline-flex; align-items:center; gap:5px; }
+.tarefa-detalhes i{ color:var(--text-faint); }
+.prazo.hoje{ color:var(--warning); font-weight:600; }
+.prazo.atrasada{ color:var(--danger); font-weight:600; }
+.prazo.hoje i, .prazo.atrasada i{ color:inherit; }
+.swatch-mini{ width:12px; height:12px; border-width:1px; box-shadow:none; }
+.tarefa-desc{ margin-top:6px; font-size:.86rem; color:var(--text-dim); white-space:pre-line; }
+.tarefa-acoes{ display:flex; gap:4px; flex-shrink:0; align-items:center; }
+.tarefa-acoes .action-btn{ margin-left:0; }
+.tarefas-vazio{ text-align:center; color:var(--text-dim); padding:36px 16px; border:1px dashed var(--border-strong); border-radius:var(--radius); }
+.tarefas-vazio i{ display:block; font-size:1.6rem; margin-bottom:8px; color:var(--text-faint); }
+
+.lista-tarefas.compacta{ gap:8px; }
+.lista-tarefas.compacta .tarefa{ box-shadow:none; background:var(--panel); padding:10px 12px; }
+.lista-tarefas.compacta .tarefas-vazio{ padding:20px; }
+
+@media (max-width:768px){
+  .tarefa{ flex-wrap:wrap; }
+  .tarefa-acoes{ width:100%; justify-content:flex-end; padding-top:8px; border-top:1px solid var(--border); }
+  .tipo-opcao{ min-width:0; }
+}
+
+/* botão do link do modelo (MakerWorld etc.) */
+.btn-modelo{ color:var(--info); border-color:rgba(90,169,255,.4); }
+.btn-modelo:hover{ background:var(--info-soft); color:var(--info); border-color:var(--info); }
+.btn-modelo.com-texto{ font-size:.8rem; }
+#form-tarefa[data-tipo="orcamento"] .so-tipo-tarefa{ display:none; }
