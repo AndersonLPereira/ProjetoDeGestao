@@ -39,8 +39,10 @@
         <a href="dashboard.html" class="nav-link"><i class="fas fa-chart-pie"></i> Painel</a>
         <a href="orcamento.html" class="nav-link"><i class="fas fa-calculator"></i> Novo orçamento</a>
         <a href="historico.html" class="nav-link"><i class="fas fa-receipt"></i> Orçamentos e vendas</a>
+        <a href="producao.html" class="nav-link"><i class="fas fa-layer-group"></i> Produção</a>
 
         <span class="nav-section">Cadastros</span>
+        <a href="clientes.html" class="nav-link"><i class="fas fa-users"></i> Clientes</a>
         <a href="filamentos.html" class="nav-link"><i class="fas fa-compact-disc"></i> Filamentos</a>
         <a href="maquinas.html" class="nav-link"><i class="fas fa-print"></i> Impressoras</a>
 
@@ -65,7 +67,8 @@
               <div class="row">
                 <div class="input-group">
                   <label for="orc-cliente">Cliente</label>
-                  <input type="text" id="orc-cliente" placeholder="Nome do cliente">
+                  <input type="text" id="orc-cliente" placeholder="Nome ou escolha um cadastrado" list="lista-clientes" autocomplete="off" onchange="preencherClienteOrcamento()">
+                  <datalist id="lista-clientes"></datalist>
                 </div>
                 <div class="input-group">
                   <label for="orc-telefone">WhatsApp do cliente</label>
@@ -122,6 +125,16 @@
               </div>
               <div class="row">
                 <div class="input-group">
+                  <label for="orc-mao">Trabalho manual por peça (h) <small class="hint">modelagem, acabamento · <span id="orc-valor-hora">R$ 0,00</span>/h</small></label>
+                  <input type="number" id="orc-mao" value="0" min="0" step="0.25" oninput="calcularEmTempoReal()">
+                </div>
+                <div class="input-group">
+                  <label for="orc-taxa">Taxas da venda (%) <small class="hint">marketplace, maquininha, imposto</small></label>
+                  <input type="number" id="orc-taxa" value="0" min="0" max="90" step="0.5" oninput="calcularEmTempoReal()">
+                </div>
+              </div>
+              <div class="row">
+                <div class="input-group">
                   <label for="orc-margem-lucro">Lucro (%)</label>
                   <input type="number" id="orc-margem-lucro" value="100" min="0" oninput="limparPrecoManual(); calcularEmTempoReal()">
                 </div>
@@ -153,7 +166,9 @@
               <li><span>Desgaste da impressora</span> <span id="res-desgaste">R$ 0,00</span></li>
               <li><span>Extras</span> <span id="res-extras">R$ 0,00</span></li>
               <li><span>Margem de falha</span> <span id="res-erro">R$ 0,00</span></li>
+              <li><span>Mão de obra</span> <span id="res-mao">R$ 0,00</span></li>
               <li class="total-cost"><span>Custo total</span> <span id="res-total-custo">R$ 0,00</span></li>
+              <li><span>Taxas da venda</span> <span id="res-taxa">R$ 0,00</span></li>
             </ul>
 
             <div class="final-price-box">

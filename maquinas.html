@@ -39,8 +39,10 @@
         <a href="dashboard.html" class="nav-link"><i class="fas fa-chart-pie"></i> Painel</a>
         <a href="orcamento.html" class="nav-link"><i class="fas fa-calculator"></i> Novo orçamento</a>
         <a href="historico.html" class="nav-link"><i class="fas fa-receipt"></i> Orçamentos e vendas</a>
+        <a href="producao.html" class="nav-link"><i class="fas fa-layer-group"></i> Produção</a>
 
         <span class="nav-section">Cadastros</span>
+        <a href="clientes.html" class="nav-link"><i class="fas fa-users"></i> Clientes</a>
         <a href="filamentos.html" class="nav-link"><i class="fas fa-compact-disc"></i> Filamentos</a>
         <a href="maquinas.html" class="nav-link"><i class="fas fa-print"></i> Impressoras</a>
 
@@ -58,8 +60,8 @@
           </div>
         </header>
 
-        <div class="form-container">
-          <h3><i class="fas fa-plus-circle"></i> Cadastrar impressora</h3>
+        <div class="form-container" id="form-maquina">
+          <h3 id="maq-form-titulo"><i class="fas fa-plus-circle"></i> Cadastrar impressora</h3>
           <div class="row">
             <div class="input-group">
               <label for="maq-nome">Nome / modelo</label>
@@ -86,7 +88,10 @@
             </div>
           </div>
 
-          <button class="btn-primary full-width" type="button" onclick="salvarMaquina()"><i class="fas fa-plus"></i> Cadastrar impressora</button>
+          <div class="form-acoes">
+            <button class="btn-primary" type="button" id="maq-btn-salvar" onclick="salvarMaquina()"><i class="fas fa-plus"></i> Cadastrar impressora</button>
+            <button class="btn-secondary so-edicao" type="button" onclick="cancelarEdicaoMaquina()"><i class="fas fa-xmark"></i> Cancelar edição</button>
+          </div>
         </div>
 
         <div class="table-responsive">

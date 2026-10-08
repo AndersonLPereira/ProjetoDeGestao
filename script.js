@@ -5,6 +5,7 @@ const DB_KEY_FILAMENTOS = 'nexus_filamentos';
 const DB_KEY_MAQUINAS = 'nexus_maquinas';
 const DB_KEY_ORCAMENTOS = 'nexus_orcamentos';
 const DB_KEY_EMPRESA = 'nexus_empresa';
+const DB_KEY_CLIENTES = 'nexus_clientes';
 
 const EMPRESA_PADRAO = {
     nome: 'LB impressões 3D',
@@ -14,6 +15,8 @@ const EMPRESA_PADRAO = {
     documento: '',
     cidade: '',
     pix: '',
+    valorHora: 20,
+    taxaVenda: 0,
     validadeDias: 7,
     condicoes: 'Pagamento: 50% na aprovação e 50% na entrega.\nPix, dinheiro ou cartão.',
     termos: 'Peças impressas em 3D podem apresentar leves linhas de camada e pequenas variações de cor, que são características do processo.\n' +
@@ -42,12 +45,14 @@ function brl(valor) {
 
 // Aviso rápido no canto da tela (substitui o alert)
 function avisar(mensagem, tipo = 'ok') {
-    let area = document.querySelector('.toast-area');
+    // Com uma janela (dialog) aberta, o aviso vai dentro dela para não ficar atrás do fundo escuro
+    const host = document.querySelector('dialog[open]') || document.body;
+    let area = host.querySelector(':scope > .toast-area');
     if (!area) {
         area = document.createElement('div');
         area.className = 'toast-area';
         area.setAttribute('role', 'status');
-        document.body.appendChild(area);
+        host.appendChild(area);
     }
     const toast = document.createElement('div');
     toast.className = tipo === 'erro' ? 'toast erro' : 'toast';
@@ -107,11 +112,51 @@ function linhaVazia(colunas, icone, texto) {
     return `<tr class="empty-row"><td colspan="${colunas}"><i class="fas ${icone}"></i>${texto}</td></tr>`;
 }
 
+// Etapas da produção de um pedido aprovado
+const ETAPAS_PRODUCAO = [
+    { id: 'fila', nome: 'A imprimir', icone: 'fa-hourglass-start' },
+    { id: 'imprimindo', nome: 'Imprimindo', icone: 'fa-print' },
+    { id: 'acabamento', nome: 'Acabamento', icone: 'fa-paintbrush' },
+    { id: 'pronto', nome: 'Pronto', icone: 'fa-box' },
+    { id: 'entregue', nome: 'Entregue', icone: 'fa-circle-check' }
+];
+
+function etapaDe(orc) {
+    return ETAPAS_PRODUCAO.some(e => e.id === orc.producao) ? orc.producao : 'fila';
+}
+
+// Pagamentos registrados de um pedido
+function totalPago(orc) {
+    return (orc.pagamentos || []).reduce((soma, p) => soma + Number(p.valor || 0), 0);
+}
+
+function faltaPagar(orc) {
+    return Math.max(0, Number(orc.valorVenda || 0) - totalPago(orc));
+}
+
+function seloPagamento(orc) {
+    const pago = totalPago(orc);
+    if (pago <= 0) return '<span class="pag-badge pag-nada">A receber</span>';
+    if (faltaPagar(orc) < 0.01) return '<span class="pag-badge pag-ok"><i class="fas fa-check"></i> Pago</span>';
+    return `<span class="pag-badge pag-parcial">Falta ${brl(faltaPagar(orc))}</span>`;
+}
+
+function hojeBR() {
+    return new Date().toLocaleDateString('pt-BR');
+}
+
+function linkWhats(telefone, mensagem) {
+    let numero = String(telefone || '').replace(/\D/g, '');
+    if (numero && numero.length <= 11) numero = `55${numero}`;
+    return `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
+}
+
 const CLASSES_STATUS = { Pendente: 'status-pendente', Aprovado: 'status-aprovado', Cancelado: 'status-cancelado', Pessoal: 'status-pessoal' };
 
 let filamentos = [];
 let maquinas = [];
 let orcamentos = [];
+let clientes = [];
 
 let orcamentoAtualCalculado = null;
 
@@ -125,6 +170,7 @@ function reloadFromStorage() {
     filamentos = JSON.parse(localStorage.getItem(DB_KEY_FILAMENTOS)) || [];
     maquinas = JSON.parse(localStorage.getItem(DB_KEY_MAQUINAS)) || [];
     orcamentos = JSON.parse(localStorage.getItem(DB_KEY_ORCAMENTOS)) || [];
+    clientes = JSON.parse(localStorage.getItem(DB_KEY_CLIENTES)) || [];
 }
 
 // =====================
@@ -171,39 +217,82 @@ function carregarHistorico() { renderizarHistorico(); }
 // =====================
 // MÁQUINAS
 // =====================
+let maquinaEditandoId = null;
+
 function salvarMaquina() {
     reloadFromStorage();
 
-    const nomeEl = document.getElementById('maq-nome');
-    const valorEl = document.getElementById('maq-valor');
-    const potEl = document.getElementById('maq-potencia');
-    const kwhEl = document.getElementById('maq-kwh');
-    const vidaEl = document.getElementById('maq-vida');
+    const campo = id => document.getElementById(id);
+    if (!campo('maq-nome') || !campo('maq-valor')) return;
 
-    if (!nomeEl || !valorEl) return;
-
-    const nome = (nomeEl.value || '').trim();
-    const valor = parseFloat(valorEl.value);
-    const potencia = potEl ? parseFloat(potEl.value) : 0;
-    const kwh = kwhEl ? parseFloat(kwhEl.value) : 0;
-    const vidaUtil = vidaEl ? (parseFloat(vidaEl.value) || 3000) : 3000;
+    const nome = campo('maq-nome').value.trim();
+    const valor = parseFloat(campo('maq-valor').value);
+    const potencia = parseFloat(campo('maq-potencia').value) || 0;
+    const kwh = parseFloat(campo('maq-kwh').value) || 0;
+    const vidaUtil = parseFloat(campo('maq-vida').value) || 3000;
 
     if (!nome || Number.isNaN(valor)) return avisar("Preencha o nome e o valor da impressora.", "erro");
 
-    const maquina = { id: Date.now(), nome, valor, potencia: potencia || 0, kwh: kwh || 0, vidaUtil };
-    maquinas.push(maquina);
+    const dados = { nome, valor, potencia, kwh, vidaUtil };
+
+    if (maquinaEditandoId !== null) {
+        const maq = maquinas.find(m => String(m.id) === String(maquinaEditandoId));
+        if (!maq) {
+            cancelarEdicaoMaquina();
+            return avisar("Essa impressora não existe mais.", "erro");
+        }
+        Object.assign(maq, dados);
+        salvarDados(DB_KEY_MAQUINAS, maquinas);
+        cancelarEdicaoMaquina();
+        return avisar("Impressora atualizada!");
+    }
+
+    maquinas.push({ id: Date.now(), ...dados });
     salvarDados(DB_KEY_MAQUINAS, maquinas);
-
-    nomeEl.value = '';
-    valorEl.value = '';
-    if (potEl) potEl.value = '';
-    if (kwhEl) kwhEl.value = '';
-    if (vidaEl) vidaEl.value = '3000';
-
+    limparFormMaquina();
     renderizarMaquinas();
     avisar("Impressora cadastrada!");
+}
 
-    if (document.getElementById('orc-maquina')) carregarOpcoesOrcamento();
+function limparFormMaquina() {
+    ['maq-nome', 'maq-valor', 'maq-potencia', 'maq-kwh'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    const vida = document.getElementById('maq-vida');
+    if (vida) vida.value = '3000';
+}
+
+function editarMaquina(index) {
+    reloadFromStorage();
+    const maq = maquinas[index];
+    if (!maq) return;
+
+    maquinaEditandoId = maq.id;
+    const valores = { 'maq-nome': maq.nome, 'maq-valor': maq.valor, 'maq-potencia': maq.potencia, 'maq-kwh': maq.kwh, 'maq-vida': maq.vidaUtil || 3000 };
+    Object.entries(valores).forEach(([id, valor]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = valor ?? '';
+    });
+
+    const form = document.getElementById('form-maquina');
+    form.classList.add('editando');
+    document.getElementById('maq-form-titulo').innerHTML = `<i class="fas fa-pen"></i> Editando: ${esc(maq.nome)}`;
+    document.getElementById('maq-btn-salvar').innerHTML = '<i class="fas fa-check"></i> Salvar alterações';
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    renderizarMaquinas();
+}
+
+function cancelarEdicaoMaquina() {
+    maquinaEditandoId = null;
+    limparFormMaquina();
+    const form = document.getElementById('form-maquina');
+    if (form) {
+        form.classList.remove('editando');
+        document.getElementById('maq-form-titulo').innerHTML = '<i class="fas fa-plus-circle"></i> Cadastrar impressora';
+        document.getElementById('maq-btn-salvar').innerHTML = '<i class="fas fa-plus"></i> Cadastrar impressora';
+    }
+    renderizarMaquinas();
 }
 
 function renderizarMaquinas() {
@@ -222,13 +311,14 @@ function renderizarMaquinas() {
         // Desgaste + energia por hora de impressão (mesma conta da calculadora)
         const custoHora = Number(m.valor || 0) / vida + (Number(m.potencia || 0) / 1000) * Number(m.kwh || 0);
         return `
-      <tr>
+      <tr class="${String(m.id) === String(maquinaEditandoId) ? 'linha-editando' : ''}">
         <td><div class="fil-nome"><span class="card-icon" style="margin: 0; width: 34px; height: 34px;"><i class="fas fa-print"></i></span><strong>${esc(m.nome)}</strong></div></td>
         <td class="num">${brl(m.valor)}</td>
         <td class="num">${Number(m.potencia || 0)} W</td>
         <td class="num">${vida.toLocaleString('pt-BR')} h</td>
         <td class="num">${brl(custoHora)}<small>/h</small></td>
         <td class="acoes">
+          <button class="action-btn btn-edit" type="button" title="Editar" onclick="editarMaquina(${index})"><i class="fas fa-pen"></i></button>
           <button class="action-btn btn-delete" type="button" title="Excluir" onclick="deletarMaquina(${index})"><i class="fas fa-trash-can"></i></button>
         </td>
       </tr>`;
@@ -239,6 +329,7 @@ function deletarMaquina(index) {
     reloadFromStorage();
 
     if (confirm("Excluir esta impressora?")) {
+        if (String(maquinas[index]?.id) === String(maquinaEditandoId)) cancelarEdicaoMaquina();
         maquinas.splice(index, 1);
         salvarDados(DB_KEY_MAQUINAS, maquinas);
         renderizarMaquinas();
@@ -410,6 +501,20 @@ function carregarOpcoesOrcamento() {
     if (valorAtual) selectMaq.value = valorAtual;
 }
 
+function carregarClientesOrcamento() {
+    const lista = document.getElementById('lista-clientes');
+    if (!lista) return;
+    lista.innerHTML = clientes.map(c => `<option value="${esc(c.nome)}"></option>`).join('');
+}
+
+// Ao escolher um cliente cadastrado, preenche o WhatsApp
+function preencherClienteOrcamento() {
+    const nome = document.getElementById('orc-cliente')?.value;
+    const cadastro = clientes.find(c => semAcento(c.nome) === semAcento(nome));
+    const tel = document.getElementById('orc-telefone');
+    if (cadastro && tel && !tel.value) tel.value = cadastro.telefone || '';
+}
+
 function adicionarLinhaFilamento(reset = false) {
     reloadFromStorage();
 
@@ -450,6 +555,9 @@ function calcularEmTempoReal() {
     const margemErro = parseFloat(document.getElementById('orc-erro')?.value) || 0;
     const margemLucro = parseFloat(document.getElementById('orc-margem-lucro')?.value) || 0;
     const precoManual = parseFloat(document.getElementById('orc-preco-manual')?.value);
+    const horasMao = parseFloat(document.getElementById('orc-mao')?.value) || 0;
+    const taxaVenda = Math.min(90, Math.max(0, parseFloat(document.getElementById('orc-taxa')?.value) || 0));
+    const valorHora = Number(carregarEmpresa().valorHora || 0);
 
     let custoFilamentoTotal = 0;
     let filamentosUsados = [];
@@ -484,17 +592,23 @@ function calcularEmTempoReal() {
 
     let subtotal = custoFilamentoTotal + custoEnergia + custoDesgaste + extras;
     const valorErro = subtotal * (margemErro / 100);
-    const custoFinal = subtotal + valorErro;
+    // Mão de obra (modelagem, pós-processamento) não entra na margem de falha
+    const custoMao = horasMao * valorHora;
+    const custoFinal = subtotal + valorErro + custoMao;
 
     let precoVenda = 0;
     let valorLucro = 0;
+    let valorTaxa = 0;
 
     if (!Number.isNaN(precoManual) && precoManual > 0) {
         precoVenda = precoManual;
-        valorLucro = precoVenda - custoFinal;
+        valorTaxa = precoVenda * (taxaVenda / 100);
+        valorLucro = precoVenda - custoFinal - valorTaxa;
     } else {
+        // O preço já embute as taxas da venda (marketplace, maquininha, imposto)
         valorLucro = custoFinal * (margemLucro / 100);
-        precoVenda = custoFinal + valorLucro;
+        precoVenda = (custoFinal + valorLucro) / (1 - taxaVenda / 100);
+        valorTaxa = precoVenda - custoFinal - valorLucro;
     }
 
     const setTxt = (id, txt) => {
@@ -510,6 +624,9 @@ function calcularEmTempoReal() {
     setTxt('res-desgaste', brl(custoDesgaste * quantidade));
     setTxt('res-extras', brl(extras * quantidade));
     setTxt('res-erro', brl(valorErro * quantidade));
+    setTxt('res-mao', brl(custoMao * quantidade));
+    setTxt('res-taxa', brl(valorTaxa * quantidade));
+    setTxt('orc-valor-hora', brl(valorHora));
     setTxt('res-total-custo', brl(custoFinal * quantidade));
     setTxt('res-preco-final', brl(precoVenda * quantidade));
     setTxt('res-unitario', quantidade > 1 ? `${quantidade} peças de ${brl(precoVenda)}` : 'Preço por peça');
@@ -519,6 +636,10 @@ function calcularEmTempoReal() {
         quantidade,
         valorUnitario: precoVenda,
         tempoHoras,
+        horasMao,
+        taxaVenda,
+        maoDeObra: custoMao * quantidade,
+        taxas: valorTaxa * quantidade,
         custoTotal: custoFinal * quantidade,
         valorVenda: precoVenda * quantidade,
         lucro: valorLucro * quantidade,
@@ -540,16 +661,34 @@ async function salvarOrcamento() {
 
     reloadFromStorage();
 
+    const telefone = document.getElementById('orc-telefone')?.value?.trim() || '';
+
+    // Liga o orçamento ao cadastro do cliente (e cadastra se for novo)
+    let cadastro = clientes.find(c => semAcento(c.nome) === semAcento(cliente));
+    if (!cadastro) {
+        cadastro = { id: Date.now(), nome: cliente, telefone, email: '', endereco: '', obs: '' };
+        clientes.push(cadastro);
+        salvarDados(DB_KEY_CLIENTES, clientes);
+    } else if (telefone && !cadastro.telefone) {
+        cadastro.telefone = telefone;
+        salvarDados(DB_KEY_CLIENTES, clientes);
+    }
+
     const novoOrcamento = {
         id: Date.now(),
         data: new Date().toLocaleDateString('pt-BR'),
         cliente,
-        telefone: document.getElementById('orc-telefone')?.value?.trim() || '',
+        clienteId: cadastro.id,
+        telefone,
         produto,
         categoria,
         quantidade: orcamentoAtualCalculado.quantidade,
         valorUnitario: orcamentoAtualCalculado.valorUnitario,
         tempoHoras: orcamentoAtualCalculado.tempoHoras,
+        horasMao: orcamentoAtualCalculado.horasMao,
+        taxaVenda: orcamentoAtualCalculado.taxaVenda,
+        maoDeObra: orcamentoAtualCalculado.maoDeObra,
+        taxas: orcamentoAtualCalculado.taxas,
         custoTotal: orcamentoAtualCalculado.custoTotal,
         valorVenda: orcamentoAtualCalculado.valorVenda,
         lucro: orcamentoAtualCalculado.lucro,
@@ -596,6 +735,10 @@ function renderizarHistorico() {
             botoes += `
         <button class="action-btn btn-personal" type="button" title="Uso pessoal (desconta o filamento do estoque)" onclick="mudarStatus(${index}, 'Pessoal')"><i class="fas fa-user"></i></button>`;
         }
+        if (orc.status === 'Aprovado') {
+            botoes += `
+        <button class="action-btn btn-pay" type="button" title="Pagamentos" onclick="abrirPagamentos(${orc.id})"><i class="fas fa-hand-holding-dollar"></i></button>`;
+        }
         if (orc.status !== 'Cancelado') {
             botoes += `
         <button class="action-btn btn-cancel" type="button" title="Cancelar orçamento" onclick="mudarStatus(${index}, 'Cancelado')"><i class="fas fa-ban"></i></button>`;
@@ -612,11 +755,11 @@ function renderizarHistorico() {
         </td>
         <td class="num">
           <strong>${brl(orc.valorVenda)}</strong><br>
-          <small>Custo ${brl(orc.custoTotal)}</small>
+          ${orc.status === 'Aprovado' ? seloPagamento(orc) : `<small>Custo ${brl(orc.custoTotal)}</small>`}
         </td>
         <td>
           <span class="status-badge ${CLASSES_STATUS[orc.status] || ''}">${esc(orc.status)}</span>
-          ${orc.status === 'Aprovado' && orc.dataAprovacao ? `<br><small>em ${esc(orc.dataAprovacao)}</small>` : ''}
+          ${orc.status === 'Aprovado' ? `<br><small>${esc(ETAPAS_PRODUCAO.find(e => e.id === etapaDe(orc)).nome)}${orc.dataAprovacao ? ` · ${esc(orc.dataAprovacao)}` : ''}</small>` : ''}
         </td>
         <td class="acoes">${botoes}</td>
       </tr>`;
@@ -633,9 +776,10 @@ function mudarStatus(index, novoStatus) {
     const jaBaixouEstoque = orc.status === 'Aprovado' || orc.status === 'Pessoal';
 
     if (novoStatus === 'Cancelado') {
-        const pergunta = jaBaixouEstoque
+        const pergunta = (jaBaixouEstoque
             ? `Cancelar "${orc.produto}"? O filamento usado volta para o estoque.`
-            : `Cancelar o orçamento "${orc.produto}"?`;
+            : `Cancelar o orçamento "${orc.produto}"?`) +
+            (totalPago(orc) > 0 ? `\n\nAtenção: já foram registrados ${brl(totalPago(orc))} em pagamentos. Lembre de devolver ao cliente se for o caso.` : '');
         if (!confirm(pergunta)) return;
 
         if (jaBaixouEstoque) {
@@ -680,7 +824,10 @@ function mudarStatus(index, novoStatus) {
     }
 
     orc.status = novoStatus;
-    if (novoStatus === 'Aprovado') orc.dataAprovacao = new Date().toLocaleDateString('pt-BR');
+    if (novoStatus === 'Aprovado') {
+        orc.dataAprovacao = hojeBR();
+        orc.producao = 'fila';
+    }
     salvarDados(DB_KEY_ORCAMENTOS, orcamentos);
 
     const MENSAGENS = {
@@ -750,6 +897,11 @@ function atualizarDashboard() {
     setTxt('dash-vendas', String(qtdVendas));
     setTxt('dash-filamento', `${gramas.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} g`);
 
+    // A receber considera todos os pedidos aprovados, de qualquer mês
+    const aprovados = orcamentos.filter(o => o.status === 'Aprovado');
+    setTxt('dash-receber', brl(aprovados.reduce((soma, o) => soma + faltaPagar(o), 0)));
+    setTxt('dash-producao', String(aprovados.filter(o => etapaDe(o) !== 'entregue').length));
+
     const lista = document.getElementById('dash-history-list');
     if (lista) {
         lista.innerHTML = orcamentos.length
@@ -816,7 +968,7 @@ function gerarBackup() {
     const out = document.getElementById('backup-output');
     if (!out) return;
 
-    const dados = { filamentos, maquinas, orcamentos, empresa: carregarEmpresa() };
+    const dados = { filamentos, maquinas, orcamentos, clientes, empresa: carregarEmpresa() };
     out.value = encodeBase64Utf8(JSON.stringify(dados));
 }
 
@@ -853,6 +1005,7 @@ async function restaurarBackup() {
                 salvarDados(DB_KEY_FILAMENTOS, dados.filamentos || []),
                 salvarDados(DB_KEY_MAQUINAS, dados.maquinas || []),
                 salvarDados(DB_KEY_ORCAMENTOS, dados.orcamentos || []),
+                salvarDados(DB_KEY_CLIENTES, dados.clientes || []),
                 dados.empresa ? salvarDados(DB_KEY_EMPRESA, dados.empresa) : null
             ]);
 
@@ -867,7 +1020,7 @@ async function restaurarBackup() {
 // =====================
 // DADOS DA EMPRESA
 // =====================
-const CAMPOS_EMPRESA = ['nome', 'whatsapp', 'instagram', 'email', 'documento', 'cidade', 'pix', 'validadeDias', 'condicoes', 'termos'];
+const CAMPOS_EMPRESA = ['nome', 'whatsapp', 'instagram', 'email', 'documento', 'cidade', 'pix', 'valorHora', 'taxaVenda', 'validadeDias', 'condicoes', 'termos'];
 
 function preencherFormEmpresa() {
     const empresa = carregarEmpresa();
@@ -884,8 +1037,337 @@ function salvarEmpresa() {
         if (el) empresa[campo] = el.value.trim();
     });
     empresa.validadeDias = parseInt(empresa.validadeDias, 10) || EMPRESA_PADRAO.validadeDias;
+    empresa.valorHora = Math.max(0, parseFloat(empresa.valorHora) || 0);
+    empresa.taxaVenda = Math.min(90, Math.max(0, parseFloat(empresa.taxaVenda) || 0));
     salvarDados(DB_KEY_EMPRESA, empresa);
     avisar("Dados da empresa salvos!");
+}
+
+// =====================
+// PAGAMENTOS
+// =====================
+const FORMAS_PAGAMENTO = ['Pix', 'Dinheiro', 'Cartão de crédito', 'Cartão de débito', 'Transferência'];
+let pagamentoOrcId = null;
+
+function abrirPagamentos(orcId) {
+    reloadFromStorage();
+    const orc = orcamentos.find(o => String(o.id) === String(orcId));
+    if (!orc) return;
+    pagamentoOrcId = orc.id;
+
+    let dlg = document.getElementById('dlg-pagamento');
+    if (!dlg) {
+        dlg = document.createElement('dialog');
+        dlg.id = 'dlg-pagamento';
+        dlg.className = 'modal';
+        document.body.appendChild(dlg);
+        dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+    }
+
+    const falta = faltaPagar(orc);
+    const pagos = orc.pagamentos || [];
+
+    dlg.innerHTML = `
+      <form method="dialog" class="modal-corpo" onsubmit="event.preventDefault(); registrarPagamento();">
+        <div class="modal-topo">
+          <h3><i class="fas fa-hand-holding-dollar"></i> Pagamentos</h3>
+          <button type="button" class="modal-fechar" onclick="this.closest('dialog').close()" aria-label="Fechar"><i class="fas fa-xmark"></i></button>
+        </div>
+        <p class="hint"><strong>${esc(orc.produto)}</strong> · ${esc(orc.cliente)}</p>
+
+        <div class="pag-resumo">
+          <div><span>Total</span><strong>${brl(orc.valorVenda)}</strong></div>
+          <div><span>Pago</span><strong class="ok">${brl(totalPago(orc))}</strong></div>
+          <div><span>Falta</span><strong class="${falta > 0 ? 'falta' : 'ok'}">${brl(falta)}</strong></div>
+        </div>
+
+        ${pagos.length ? `
+        <ul class="pag-lista">
+          ${pagos.map(p => `
+            <li>
+              <div><strong>${brl(p.valor)}</strong> <small>${esc(p.forma)} · ${esc(p.data)}</small></div>
+              <button type="button" class="action-btn btn-delete" title="Remover pagamento" onclick="removerPagamento(${p.id})"><i class="fas fa-trash-can"></i></button>
+            </li>`).join('')}
+        </ul>` : ''}
+
+        ${falta > 0.009 ? `
+        <div class="row">
+          <div class="input-group">
+            <label for="pag-valor">Valor recebido (R$)</label>
+            <input type="number" id="pag-valor" step="0.01" min="0.01" value="${falta.toFixed(2)}" required>
+          </div>
+          <div class="input-group">
+            <label for="pag-forma">Forma</label>
+            <select id="pag-forma">${FORMAS_PAGAMENTO.map(f => `<option>${f}</option>`).join('')}</select>
+          </div>
+        </div>
+        <div class="pag-atalhos">
+          <button type="button" class="btn-secondary btn-sm" onclick="document.getElementById('pag-valor').value='${(Number(orc.valorVenda || 0) / 2).toFixed(2)}'">Sinal de 50%</button>
+          <button type="button" class="btn-secondary btn-sm" onclick="document.getElementById('pag-valor').value='${falta.toFixed(2)}'">Valor restante</button>
+        </div>
+        <button type="submit" class="btn-primary full-width"><i class="fas fa-plus"></i> Registrar pagamento</button>` :
+        '<p class="pag-quitado"><i class="fas fa-circle-check"></i> Pedido totalmente pago.</p>'}
+      </form>
+    `;
+
+    if (!dlg.open) dlg.showModal();
+}
+
+function registrarPagamento() {
+    reloadFromStorage();
+    const orc = orcamentos.find(o => String(o.id) === String(pagamentoOrcId));
+    if (!orc) return;
+
+    const valor = parseFloat(document.getElementById('pag-valor').value);
+    if (!(valor > 0)) return avisar('Informe o valor recebido.', 'erro');
+
+    orc.pagamentos = orc.pagamentos || [];
+    orc.pagamentos.push({ id: Date.now(), data: hojeBR(), valor, forma: document.getElementById('pag-forma').value });
+    salvarDados(DB_KEY_ORCAMENTOS, orcamentos);
+
+    avisar(faltaPagar(orc) < 0.01 ? 'Pagamento registrado. Pedido quitado!' : `Pagamento registrado. Falta ${brl(faltaPagar(orc))}.`);
+    abrirPagamentos(orc.id);
+    atualizarTela();
+}
+
+function removerPagamento(pagId) {
+    reloadFromStorage();
+    const orc = orcamentos.find(o => String(o.id) === String(pagamentoOrcId));
+    if (!orc || !confirm('Remover este pagamento?')) return;
+
+    orc.pagamentos = (orc.pagamentos || []).filter(p => String(p.id) !== String(pagId));
+    salvarDados(DB_KEY_ORCAMENTOS, orcamentos);
+    avisar('Pagamento removido.');
+    abrirPagamentos(orc.id);
+    atualizarTela();
+}
+
+// =====================
+// PRODUÇÃO (quadro)
+// =====================
+function renderizarProducao() {
+    const quadro = document.getElementById('quadro-producao');
+    if (!quadro) return;
+    reloadFromStorage();
+
+    const pedidos = orcamentos.filter(o => o.status === 'Aprovado');
+
+    quadro.innerHTML = ETAPAS_PRODUCAO.map((etapa, i) => {
+        let itens = pedidos.filter(o => etapaDe(o) === etapa.id);
+        // Na coluna "Entregue" mostra só os mais recentes
+        if (etapa.id === 'entregue') itens = itens.sort((a, b) => Number(b.entregueEm || 0) - Number(a.entregueEm || 0)).slice(0, 10);
+
+        return `
+        <section class="coluna coluna-${etapa.id}">
+          <header class="coluna-topo">
+            <span><i class="fas ${etapa.icone}"></i> ${etapa.nome}</span>
+            <b>${pedidos.filter(o => etapaDe(o) === etapa.id).length}</b>
+          </header>
+          <div class="coluna-itens">
+            ${itens.length ? itens.map(o => cartaoProducao(o, i)).join('') : '<p class="coluna-vazia">Nenhum pedido</p>'}
+          </div>
+        </section>`;
+    }).join('');
+}
+
+function cartaoProducao(o, i) {
+    const anterior = ETAPAS_PRODUCAO[i - 1];
+    const proxima = ETAPAS_PRODUCAO[i + 1];
+    const qtd = Number(o.quantidade || 1);
+    const avisoPronto = linkWhats(o.telefone, `Olá, ${o.cliente}! Seu pedido "${o.produto}" está pronto! 🎉` +
+        (faltaPagar(o) > 0 ? `\nFica faltando ${brl(faltaPagar(o))} para a retirada/entrega.` : '') +
+        '\nQual o melhor horário para combinarmos a entrega?');
+
+    return `
+      <article class="cartao">
+        <div class="cartao-topo">
+          <strong>${esc(o.produto)}</strong>
+          ${qtd > 1 ? `<span class="fil-tipo">${qtd} un.</span>` : ''}
+        </div>
+        <small><i class="fas fa-user"></i> ${esc(o.cliente)}</small>
+        ${o.prazo ? `<small><i class="far fa-clock"></i> ${esc(o.prazo)}${o.dataAprovacao ? ` (aprovado ${esc(o.dataAprovacao)})` : ''}</small>` : ''}
+        <div class="cartao-valores">
+          <span class="num">${brl(o.valorVenda)}</span>
+          ${seloPagamento(o)}
+        </div>
+        <div class="cartao-acoes">
+          ${anterior ? `<button type="button" class="action-btn" title="Voltar para ${anterior.nome}" onclick="moverProducao(${o.id}, -1)"><i class="fas fa-arrow-left"></i></button>` : '<span></span>'}
+          <div>
+            <button type="button" class="action-btn btn-pay" title="Pagamentos" onclick="abrirPagamentos(${o.id})"><i class="fas fa-hand-holding-dollar"></i></button>
+            ${etapaDe(o) === 'pronto' && o.telefone ? `<a class="action-btn btn-whats-mini" title="Avisar o cliente no WhatsApp" href="${avisoPronto}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i></a>` : ''}
+          </div>
+          ${proxima ? `<button type="button" class="action-btn btn-avancar com-texto" title="Mover para ${proxima.nome}" onclick="moverProducao(${o.id}, 1)">${proxima.nome} <i class="fas fa-arrow-right"></i></button>` : '<span></span>'}
+        </div>
+      </article>`;
+}
+
+function moverProducao(orcId, direcao) {
+    reloadFromStorage();
+    const orc = orcamentos.find(o => String(o.id) === String(orcId));
+    if (!orc) return;
+
+    const i = ETAPAS_PRODUCAO.findIndex(e => e.id === etapaDe(orc)) + direcao;
+    const etapa = ETAPAS_PRODUCAO[i];
+    if (!etapa) return;
+
+    if (etapa.id === 'entregue' && faltaPagar(orc) > 0.009 &&
+        !confirm(`Ainda falta receber ${brl(faltaPagar(orc))} deste pedido. Marcar como entregue mesmo assim?`)) return;
+
+    orc.producao = etapa.id;
+    if (etapa.id === 'entregue') orc.entregueEm = Date.now();
+    salvarDados(DB_KEY_ORCAMENTOS, orcamentos);
+    avisar(`"${orc.produto}" movido para ${etapa.nome}.`);
+    renderizarProducao();
+}
+
+// =====================
+// CLIENTES
+// =====================
+let clienteEditandoId = null;
+
+function pedidosDoCliente(c) {
+    return orcamentos.filter(o => String(o.clienteId) === String(c.id) || (!o.clienteId && semAcento(o.cliente) === semAcento(c.nome)));
+}
+
+function salvarCliente() {
+    reloadFromStorage();
+    const campo = id => document.getElementById(id).value.trim();
+    const nome = campo('cli-nome');
+    if (!nome) return avisar('Informe o nome do cliente.', 'erro');
+
+    const duplicado = clientes.find(c => semAcento(c.nome) === semAcento(nome) && String(c.id) !== String(clienteEditandoId));
+    if (duplicado) return avisar('Já existe um cliente com esse nome.', 'erro');
+
+    const dados = { nome, telefone: campo('cli-telefone'), email: campo('cli-email'), endereco: campo('cli-endereco'), obs: campo('cli-obs') };
+
+    if (clienteEditandoId !== null) {
+        const cli = clientes.find(c => String(c.id) === String(clienteEditandoId));
+        if (cli) {
+            const nomeAntigo = cli.nome;
+            Object.assign(cli, dados);
+            // Orçamentos ligados a ele passam a mostrar o nome novo
+            orcamentos.forEach(o => {
+                if (String(o.clienteId) === String(cli.id) || (!o.clienteId && o.cliente === nomeAntigo)) {
+                    o.clienteId = cli.id;
+                    o.cliente = cli.nome;
+                    if (!o.telefone) o.telefone = cli.telefone;
+                }
+            });
+            salvarDados(DB_KEY_ORCAMENTOS, orcamentos);
+        }
+        salvarDados(DB_KEY_CLIENTES, clientes);
+        cancelarEdicaoCliente();
+        return avisar('Cliente atualizado!');
+    }
+
+    clientes.push({ id: Date.now(), ...dados });
+    salvarDados(DB_KEY_CLIENTES, clientes);
+    limparFormCliente();
+    renderizarClientes();
+    avisar('Cliente cadastrado!');
+}
+
+function limparFormCliente() {
+    ['cli-nome', 'cli-telefone', 'cli-email', 'cli-endereco', 'cli-obs'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+}
+
+function editarCliente(id) {
+    reloadFromStorage();
+    const cli = clientes.find(c => String(c.id) === String(id));
+    if (!cli) return;
+
+    clienteEditandoId = cli.id;
+    const valores = { 'cli-nome': cli.nome, 'cli-telefone': cli.telefone, 'cli-email': cli.email, 'cli-endereco': cli.endereco, 'cli-obs': cli.obs };
+    Object.entries(valores).forEach(([campo, valor]) => { document.getElementById(campo).value = valor ?? ''; });
+
+    const form = document.getElementById('form-cliente');
+    form.classList.add('editando');
+    document.getElementById('cli-form-titulo').innerHTML = `<i class="fas fa-pen"></i> Editando: ${esc(cli.nome)}`;
+    document.getElementById('cli-btn-salvar').innerHTML = '<i class="fas fa-check"></i> Salvar alterações';
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    renderizarClientes();
+}
+
+function cancelarEdicaoCliente() {
+    clienteEditandoId = null;
+    limparFormCliente();
+    const form = document.getElementById('form-cliente');
+    if (form) {
+        form.classList.remove('editando');
+        document.getElementById('cli-form-titulo').innerHTML = '<i class="fas fa-user-plus"></i> Cadastrar cliente';
+        document.getElementById('cli-btn-salvar').innerHTML = '<i class="fas fa-plus"></i> Cadastrar cliente';
+    }
+    renderizarClientes();
+}
+
+function excluirCliente(id) {
+    reloadFromStorage();
+    const cli = clientes.find(c => String(c.id) === String(id));
+    if (!cli) return;
+    const qtd = pedidosDoCliente(cli).length;
+    if (!confirm(`Excluir o cliente "${cli.nome}"?` + (qtd ? `\n\nOs ${qtd} orçamento(s) dele continuam no histórico.` : ''))) return;
+
+    if (String(cli.id) === String(clienteEditandoId)) cancelarEdicaoCliente();
+    clientes = clientes.filter(c => String(c.id) !== String(id));
+    salvarDados(DB_KEY_CLIENTES, clientes);
+    renderizarClientes();
+    avisar('Cliente excluído.');
+}
+
+function renderizarClientes() {
+    const tbody = document.querySelector('#tabela-clientes tbody');
+    if (!tbody) return;
+    reloadFromStorage();
+
+    const busca = semAcento(document.getElementById('cli-busca')?.value);
+    const lista = clientes
+        .map(c => {
+            const pedidos = pedidosDoCliente(c);
+            const vendas = pedidos.filter(o => o.status === 'Aprovado');
+            return {
+                c,
+                pedidos: pedidos.filter(o => o.status !== 'Cancelado').length,
+                total: vendas.reduce((s, o) => s + Number(o.valorVenda || 0), 0),
+                falta: vendas.reduce((s, o) => s + faltaPagar(o), 0),
+                ultimo: pedidos.reduce((m, o) => Math.max(m, Number(o.id) || 0), 0)
+            };
+        })
+        .filter(({ c }) => !busca || semAcento(`${c.nome} ${c.telefone} ${c.email}`).includes(busca))
+        .sort((a, b) => b.total - a.total || a.c.nome.localeCompare(b.c.nome));
+
+    if (!clientes.length) {
+        tbody.innerHTML = linhaVazia(5, 'fa-users', 'Nenhum cliente ainda. Eles também são cadastrados automaticamente ao salvar um orçamento.');
+        return;
+    }
+    if (!lista.length) {
+        tbody.innerHTML = linhaVazia(5, 'fa-magnifying-glass', 'Nenhum cliente encontrado.');
+        return;
+    }
+
+    tbody.innerHTML = lista.map(({ c, pedidos, total, falta, ultimo }) => `
+      <tr class="${String(c.id) === String(clienteEditandoId) ? 'linha-editando' : ''}">
+        <td>
+          <div class="fil-nome">
+            <span class="avatar">${esc(c.nome.trim().charAt(0).toUpperCase())}</span>
+            <div>
+              <strong>${esc(c.nome)}</strong><br>
+              <small>${[c.telefone, c.email].filter(Boolean).map(esc).join(' · ') || 'Sem contato'}</small>
+            </div>
+          </div>
+        </td>
+        <td class="num">${pedidos}</td>
+        <td class="num"><strong>${brl(total)}</strong>${falta > 0.009 ? `<br><span class="pag-badge pag-parcial">Falta ${brl(falta)}</span>` : ''}</td>
+        <td class="num">${ultimo ? new Date(ultimo).toLocaleDateString('pt-BR') : '-'}</td>
+        <td class="acoes">
+          ${c.telefone ? `<a class="action-btn btn-whats-mini" title="Conversar no WhatsApp" href="${linkWhats(c.telefone, `Olá, ${c.nome}!`)}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i></a>` : ''}
+          <a class="action-btn" title="Novo orçamento para este cliente" href="orcamento.html?cliente=${c.id}"><i class="fas fa-calculator"></i></a>
+          <button class="action-btn btn-edit" type="button" title="Editar" onclick="editarCliente(${c.id})"><i class="fas fa-pen"></i></button>
+          <button class="action-btn btn-delete" type="button" title="Excluir" onclick="excluirCliente(${c.id})"><i class="fas fa-trash-can"></i></button>
+        </td>
+      </tr>`).join('');
 }
 
 // =====================
@@ -917,6 +1399,16 @@ function iniciarPagina() {
     if (document.getElementById('orc-maquina')) {
         const container = document.getElementById('filamentos-container');
         if (container && container.children.length === 0) adicionarLinhaFilamento(true);
+
+        const taxa = document.getElementById('orc-taxa');
+        if (taxa) taxa.value = Number(carregarEmpresa().taxaVenda || 0);
+
+        // Vindo da tela de clientes: orcamento.html?cliente=<id>
+        const cli = clientes.find(c => String(c.id) === new URLSearchParams(location.search).get('cliente'));
+        if (cli) {
+            document.getElementById('orc-cliente').value = cli.nome;
+            document.getElementById('orc-telefone').value = cli.telefone || '';
+        }
     }
 
     // Dados da empresa
@@ -933,8 +1425,12 @@ function atualizarTela() {
 
     if (document.getElementById('orc-maquina')) {
         carregarOpcoesOrcamento();
+        carregarClientesOrcamento();
         calcularEmTempoReal();
     }
+
+    renderizarProducao();
+    renderizarClientes();
 
     if (document.querySelector('#tabela-maquinas tbody')) renderizarMaquinas();
     if (document.querySelector('#tabela-filamentos tbody')) renderizarFilamentos();

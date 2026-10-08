@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#11141b" />
-  <title>Filamentos - LB impressões 3D</title>
+  <title>Clientes - LB impressões 3D</title>
   <link rel="icon" type="image/png" href="Logo LB impressões 3D.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -52,68 +52,58 @@
     </aside>
 
     <main class="content">
-      <section id="filamentos" class="section active-section">
+      <section id="clientes" class="section active-section">
         <header class="page-header">
           <div>
-            <h1><i class="fas fa-compact-disc"></i> Filamentos</h1>
-            <p>Seus rolos em estoque e o custo por grama de cada um</p>
+            <h1><i class="fas fa-users"></i> Clientes</h1>
+            <p>Contatos e histórico de compras de cada cliente</p>
           </div>
         </header>
-
-        <div class="form-container" id="form-filamento">
-          <h3 id="fil-form-titulo"><i class="fas fa-plus-circle"></i> Cadastrar rolo</h3>
+        <div class="form-container" id="form-cliente">
+          <h3 id="cli-form-titulo"><i class="fas fa-user-plus"></i> Cadastrar cliente</h3>
           <div class="row">
             <div class="input-group">
-              <label for="fil-marca">Marca</label>
-              <input type="text" id="fil-marca" placeholder="Ex.: Voolt3D" />
+              <label for="cli-nome">Nome</label>
+              <input type="text" id="cli-nome" placeholder="Nome do cliente" />
             </div>
             <div class="input-group">
-              <label for="fil-cor">Cor</label>
-              <input type="text" id="fil-cor" placeholder="Ex.: Azul" />
+              <label for="cli-telefone">WhatsApp</label>
+              <input type="tel" id="cli-telefone" placeholder="(11) 99999-9999" />
             </div>
             <div class="input-group">
-              <label for="fil-tipo">Material</label>
-              <input type="text" id="fil-tipo" list="lista-materiais" placeholder="PLA, PETG, ABS..." />
-              <datalist id="lista-materiais">
-                <option value="PLA"></option>
-                <option value="PLA Silk"></option>
-                <option value="PETG"></option>
-                <option value="ABS"></option>
-                <option value="ASA"></option>
-                <option value="TPU"></option>
-              </datalist>
+              <label for="cli-email">E-mail</label>
+              <input type="email" id="cli-email" placeholder="opcional" />
             </div>
           </div>
-
           <div class="row">
             <div class="input-group">
-              <label for="fil-preco">Preço do rolo (R$)</label>
-              <input type="number" id="fil-preco" step="0.01" min="0" placeholder="Ex.: 109.90" />
+              <label for="cli-endereco">Endereço / cidade</label>
+              <input type="text" id="cli-endereco" placeholder="Para entregas" />
             </div>
             <div class="input-group">
-              <label for="fil-peso">Peso do rolo (g)</label>
-              <input type="number" id="fil-peso" value="1000" min="1" />
-            </div>
-            <div class="input-group so-edicao">
-              <label for="fil-estoque">Estoque atual (g)</label>
-              <input type="number" id="fil-estoque" min="0" />
+              <label for="cli-obs">Observações</label>
+              <input type="text" id="cli-obs" placeholder="Ex.: prefere PETG, cliente de Instagram" />
             </div>
           </div>
-
           <div class="form-acoes">
-            <button class="btn-primary" type="button" id="fil-btn-salvar" onclick="salvarFilamento()"><i class="fas fa-plus"></i> Cadastrar filamento</button>
-            <button class="btn-secondary so-edicao" type="button" onclick="cancelarEdicaoFilamento()"><i class="fas fa-xmark"></i> Cancelar edição</button>
+            <button class="btn-primary" type="button" id="cli-btn-salvar" onclick="salvarCliente()"><i class="fas fa-plus"></i> Cadastrar cliente</button>
+            <button class="btn-secondary so-edicao" type="button" onclick="cancelarEdicaoCliente()"><i class="fas fa-xmark"></i> Cancelar edição</button>
           </div>
         </div>
 
+        <div class="busca">
+          <i class="fas fa-magnifying-glass"></i>
+          <input type="search" id="cli-busca" placeholder="Buscar por nome, telefone ou e-mail" oninput="renderizarClientes()" />
+        </div>
+
         <div class="table-responsive">
-          <table id="tabela-filamentos">
+          <table id="tabela-clientes">
             <thead>
               <tr>
-                <th>Filamento</th>
-                <th>Preço do rolo</th>
-                <th>Estoque</th>
-                <th>Custo/g</th>
+                <th>Cliente</th>
+                <th>Pedidos</th>
+                <th>Total comprado</th>
+                <th>Último pedido</th>
                 <th style="text-align: right;">Ações</th>
               </tr>
             </thead>
