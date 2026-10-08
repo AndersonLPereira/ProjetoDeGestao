@@ -529,9 +529,14 @@ function renderizarHistorico() {
         if (orc.status === 'Pendente') {
             botoes += `
         <button class="action-btn btn-approve" type="button" title="Aprovar venda (dá baixa no estoque)" onclick="mudarStatus(${index}, 'Aprovado')"><i class="fas fa-check"></i></button>
-        <button class="action-btn btn-personal" type="button" title="Uso pessoal (dá baixa no estoque)" onclick="mudarStatus(${index}, 'Pessoal')"><i class="fas fa-user"></i></button>
-        <button class="action-btn btn-cancel" type="button" title="Cancelar" onclick="mudarStatus(${index}, 'Cancelado')"><i class="fas fa-xmark"></i></button>`;
+        <button class="action-btn btn-personal" type="button" title="Uso pessoal (dá baixa no estoque)" onclick="mudarStatus(${index}, 'Pessoal')"><i class="fas fa-user"></i></button>`;
         }
+        if (orc.status !== 'Cancelado') {
+            botoes += `
+        <button class="action-btn btn-cancel" type="button" title="Cancelar orçamento" onclick="mudarStatus(${index}, 'Cancelado')"><i class="fas fa-ban"></i></button>`;
+        }
+        botoes += `
+        <button class="action-btn btn-delete" type="button" title="Excluir orçamento" onclick="excluirOrcamento(${index})"><i class="fas fa-trash-can"></i></button>`;
 
         return `
       <tr>
@@ -555,6 +560,24 @@ function mudarStatus(index, novoStatus) {
 
     const orc = orcamentos[index];
     if (!orc) return;
+
+    // Aprovado e Pessoal já deram baixa no filamento
+    const jaBaixouEstoque = orc.status === 'Aprovado' || orc.status === 'Pessoal';
+
+    if (novoStatus === 'Cancelado') {
+        const pergunta = jaBaixouEstoque
+            ? `Cancelar "${orc.produto}"? O filamento usado volta para o estoque.`
+            : `Cancelar o orçamento "${orc.produto}"?`;
+        if (!confirm(pergunta)) return;
+
+        if (jaBaixouEstoque) {
+            (orc.filamentosUsados || []).forEach(item => {
+                const fil = filamentos.find(f => String(f.id) === String(item.id));
+                if (fil) fil.estoqueAtual = Number(fil.estoqueAtual || 0) + Number(item.peso || 0);
+            });
+            salvarDados(DB_KEY_FILAMENTOS, filamentos);
+        }
+    }
 
     if (novoStatus === 'Aprovado' || novoStatus === 'Pessoal') {
         let estoqueOk = true;
@@ -582,8 +605,31 @@ function mudarStatus(index, novoStatus) {
     orc.status = novoStatus;
     salvarDados(DB_KEY_ORCAMENTOS, orcamentos);
 
-    const MENSAGENS = { Aprovado: 'Venda aprovada! Estoque atualizado.', Pessoal: 'Marcado como uso pessoal. Estoque atualizado.', Cancelado: 'Orçamento cancelado.' };
+    const MENSAGENS = {
+        Aprovado: 'Venda aprovada! Estoque atualizado.',
+        Pessoal: 'Marcado como uso pessoal. Estoque atualizado.',
+        Cancelado: jaBaixouEstoque ? 'Orçamento cancelado. Filamento devolvido ao estoque.' : 'Orçamento cancelado.'
+    };
     avisar(MENSAGENS[novoStatus] || 'Status atualizado.');
+
+    renderizarHistorico();
+    atualizarDashboard();
+}
+
+function excluirOrcamento(index) {
+    reloadFromStorage();
+
+    const orc = orcamentos[index];
+    if (!orc) return;
+
+    const aviso = orc.status === 'Aprovado' || orc.status === 'Pessoal'
+        ? '\n\nO estoque não será alterado. Para devolver o filamento, cancele antes de excluir.'
+        : '';
+    if (!confirm(`Excluir o orçamento "${orc.produto}" de ${orc.cliente}? Isso não pode ser desfeito.${aviso}`)) return;
+
+    orcamentos.splice(index, 1);
+    salvarDados(DB_KEY_ORCAMENTOS, orcamentos);
+    avisar('Orçamento excluído.');
 
     renderizarHistorico();
     atualizarDashboard();
