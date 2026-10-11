@@ -41,7 +41,9 @@ function esc(valor) {
 
 // Formata valores em reais: 1234.5 -> "R$ 1.234,50"
 function brl(valor) {
-    return Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const numero = Number(valor || 0);
+    // Evita "-R$ 0,00" por arredondamento
+    return (Math.abs(numero) < 0.005 ? 0 : numero).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 // Aviso rápido no canto da tela (substitui o alert)
@@ -846,6 +848,70 @@ function itensDoOrcamento(orc) {
     }];
 }
 
+// Abre um orçamento salvo no formulário (editar = atualiza o mesmo; senão é uma cópia nova)
+function carregarOrcamentoNoFormulario(orc, editar) {
+    const campo = (id, valor) => {
+        const el = document.getElementById(id);
+        if (el) el.value = valor ?? '';
+    };
+    campo('orc-cliente', orc.cliente);
+    campo('orc-telefone', orc.telefone);
+    campo('orc-prazo', orc.prazo);
+    campo('orc-obs', orc.observacoes);
+
+    // Orçamentos salvos antes desta versão não guardaram as margens:
+    // os preços ficam como "preço fixo" para não mudarem sozinhos
+    const temMargens = orc.margemErro !== undefined && orc.margemLucro !== undefined;
+    if (temMargens) {
+        campo('orc-erro', orc.margemErro);
+        campo('orc-margem-lucro', orc.margemLucro);
+    }
+    if (orc.taxaVenda !== undefined) campo('orc-taxa', orc.taxaVenda);
+
+    itensOrcamento = itensDoOrcamento(orc).map(item => ({
+        produto: item.produto || '',
+        categoria: item.categoria || '',
+        link: item.link || '',
+        maquinaId: item.maquinaId ? String(item.maquinaId) : '',
+        tempoHoras: Number(item.tempoHoras || 0),
+        quantidade: Number(item.quantidade || 1),
+        filamentos: (item.filamentos || []).map(f => ({ id: String(f.id), peso: Number(f.peso || 0) })),
+        extras: Number(item.extras || 0),
+        horasMao: Number(item.horasMao || 0),
+        precoFixo: Number(item.precoFixo || 0) || (temMargens ? 0 : Number(item.valorUnitario || 0))
+    }));
+
+    const numero = String(orc.id).slice(-6);
+    const titulo = document.querySelector('.page-header h1');
+    if (titulo) titulo.innerHTML = editar
+        ? `<i class="fas fa-pen"></i> Editando orçamento #${numero}`
+        : `<i class="far fa-copy"></i> Novo orçamento <small class="hint">(cópia do #${numero})</small>`;
+    const subtitulo = document.querySelector('.page-header p');
+    if (subtitulo) subtitulo.textContent = editar
+        ? (orc.status === 'Aprovado' || orc.status === 'Pessoal'
+            ? 'Pedido já aprovado: ao salvar, o estoque de filamento é ajustado com a diferença.'
+            : 'Altere o que precisar e salve. O número, a data e o status continuam os mesmos.')
+        : 'Confira o cliente e os itens e salve como um orçamento novo.';
+
+    if (editar) {
+        const salvar = document.querySelector('[onclick="salvarOrcamento()"]');
+        if (salvar) {
+            salvar.innerHTML = '<i class="fas fa-check"></i> Salvar alterações';
+            const cancelar = document.createElement('a');
+            cancelar.href = 'historico.html';
+            cancelar.className = 'btn-secondary full-width';
+            cancelar.innerHTML = '<i class="fas fa-xmark"></i> Cancelar edição';
+            salvar.after(cancelar);
+        }
+    }
+
+    modoEdicaoItem(false);
+    calcularEmTempoReal();
+    if (!temMargens && itensOrcamento.length) {
+        avisar('Os preços foram mantidos como "preço fixo". Apague o preço fixo de um item para recalcular.');
+    }
+}
+
 function resumoProdutos(itens) {
     if (!itens.length) return '';
     const resto = itens.length - 1;
@@ -909,9 +975,7 @@ async function salvarOrcamento() {
         salvarDados(DB_KEY_CLIENTES, clientes);
     }
 
-    const novoOrcamento = {
-        id: Date.now(),
-        data: new Date().toLocaleDateString('pt-BR'),
+    const dados = {
         cliente,
         clienteId: cadastro.id,
         telefone,
@@ -923,6 +987,8 @@ async function salvarOrcamento() {
         valorUnitario: itens.length === 1 ? itens[0].valorUnitario : null,
         tempoHoras: itens.reduce((t, i) => t + i.tempoHoras * i.quantidade, 0),
         taxaVenda: m.taxaVenda,
+        margemErro: m.margemErro,
+        margemLucro: m.margemLucro,
         maoDeObra: soma('maoDeObra'),
         taxas: soma('taxas'),
         custoTotal: soma('custoTotal'),
@@ -931,7 +997,44 @@ async function salvarOrcamento() {
         filamentosUsados: Object.values(porFilamento),
         link: itens.find(i => i.link)?.link || '',
         prazo: document.getElementById('orc-prazo')?.value?.trim() || '',
-        observacoes: document.getElementById('orc-obs')?.value?.trim() || '',
+        observacoes: document.getElementById('orc-obs')?.value?.trim() || ''
+    };
+
+    // Editando um orçamento já salvo: atualiza o mesmo registro
+    const existente = orcamentos.find(o => String(o.id) === new URLSearchParams(location.search).get('editar'));
+    if (existente) {
+        // Pedido aprovado já descontou filamento: devolve o antigo e desconta o novo
+        if (existente.status === 'Aprovado' || existente.status === 'Pessoal') {
+            const ajuste = {};
+            (existente.filamentosUsados || []).forEach(f => { ajuste[f.id] = (ajuste[f.id] || 0) + Number(f.peso || 0); });
+            dados.filamentosUsados.forEach(f => { ajuste[f.id] = (ajuste[f.id] || 0) - Number(f.peso || 0); });
+
+            const faltando = Object.entries(ajuste)
+                .map(([id, delta]) => ({ fil: filamentos.find(f => String(f.id) === String(id)), delta }))
+                .filter(({ fil, delta }) => fil && Number(fil.estoqueAtual || 0) + delta < 0);
+            if (faltando.length) {
+                return avisar(`Estoque insuficiente: ${faltando.map(({ fil }) => `${fil.marca} ${fil.cor}`).join(', ')}`, 'erro');
+            }
+            Object.entries(ajuste).forEach(([id, delta]) => {
+                const fil = filamentos.find(f => String(f.id) === String(id));
+                if (fil) fil.estoqueAtual = Number(fil.estoqueAtual || 0) + delta;
+            });
+            await salvarDados(DB_KEY_FILAMENTOS, filamentos);
+        }
+
+        // Mantém número, data, status, pagamentos e etapa da produção
+        Object.assign(existente, dados, { editadoEm: Date.now() });
+        await salvarDados(DB_KEY_ORCAMENTOS, orcamentos);
+        avisarDepois(`Orçamento #${String(existente.id).slice(-6)} atualizado!`);
+        itensOrcamento = [];
+        window.location.href = "historico.html";
+        return;
+    }
+
+    const novoOrcamento = {
+        id: Date.now(),
+        data: new Date().toLocaleDateString('pt-BR'),
+        ...dados,
         status: 'Pendente'
     };
 
@@ -972,7 +1075,9 @@ function renderizarHistorico() {
         }
         botoes += `
         ${botoesModelo(orc)}
-        <a class="action-btn btn-quote" href="orcamento-cliente.html?id=${orc.id}" title="Orçamento para o cliente"><i class="fas fa-file-invoice"></i></a>`;
+        <a class="action-btn btn-quote" href="orcamento-cliente.html?id=${orc.id}" title="Orçamento para o cliente"><i class="fas fa-file-invoice"></i></a>
+        <a class="action-btn btn-edit" href="orcamento.html?editar=${orc.id}" title="Editar orçamento"><i class="fas fa-pen"></i></a>
+        <a class="action-btn" href="orcamento.html?duplicar=${orc.id}" title="Duplicar (cria um orçamento novo igual a este)"><i class="far fa-copy"></i></a>`;
         if (orc.status === 'Pendente') {
             botoes += `
         <button class="action-btn btn-personal" type="button" title="Uso pessoal (desconta o filamento do estoque)" onclick="mudarStatus(${index}, 'Pessoal')"><i class="fas fa-user"></i></button>`;
@@ -1984,6 +2089,12 @@ function iniciarPagina() {
             document.getElementById('orc-cliente').value = cli.nome;
             document.getElementById('orc-telefone').value = cli.telefone || '';
         }
+
+        // Editar ou duplicar: orcamento.html?editar=<id> / ?duplicar=<id>
+        const paramsOrc = new URLSearchParams(location.search);
+        const base = orcamentos.find(o => String(o.id) === (paramsOrc.get('editar') || paramsOrc.get('duplicar')));
+        if (base) carregarOrcamentoNoFormulario(base, paramsOrc.has('editar'));
+        else if (paramsOrc.has('editar')) avisar('Orçamento não encontrado.', 'erro');
     }
 
     // Dados da empresa

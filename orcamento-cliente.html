@@ -209,7 +209,10 @@
 
 <body>
   <div class="toolbar">
-    <a class="btn-back" href="historico.html"><i class="fas fa-arrow-left"></i> Voltar</a>
+    <div class="group">
+      <a class="btn-back" href="historico.html"><i class="fas fa-arrow-left"></i> Voltar</a>
+      <a class="btn-back" id="btn-editar" href="#" style="display: none;"><i class="fas fa-pen"></i> Editar</a>
+    </div>
     <div class="group">
       <button class="btn-pdf" type="button" onclick="window.print()"><i class="fas fa-file-pdf"></i> Salvar PDF / Imprimir</button>
       <a class="btn-whats" id="btn-whats" href="#" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i> Enviar no WhatsApp</a>
@@ -258,7 +261,7 @@
       const alvo = document.getElementById('documento');
 
       if (!orc) {
-        document.querySelector('.toolbar .group').style.display = 'none';
+        document.querySelector('.toolbar .group:last-child').style.display = 'none';
         document.querySelector('.dica').style.display = 'none';
         alvo.innerHTML = `<div class="not-found"><p>Orçamento não encontrado.</p><p><a href="historico.html">Voltar ao histórico</a></p></div>`;
         return;
@@ -427,6 +430,12 @@
       // O navegador usa o título como nome do arquivo PDF
       const cliente = String(orc.cliente || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '');
       document.title = `Orcamento-${numero}-${cliente}`;
+
+      if (!exemplo) {
+        const editar = document.getElementById('btn-editar');
+        editar.href = `orcamento.html?editar=${orc.id}`;
+        editar.style.display = '';
+      }
     }
 
     // O orçamento de exemplo pode ser aberto sem login
