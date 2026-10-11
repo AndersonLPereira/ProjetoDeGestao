@@ -172,6 +172,11 @@ function botaoModelo(url, comTexto = true) {
     return `<a class="action-btn btn-modelo${comTexto ? ' com-texto' : ''}" href="${esc(link)}" target="_blank" rel="noopener noreferrer" title="Abrir o arquivo do modelo (${esc(siteDoLink(link))})"><i class="fas fa-cube"></i>${comTexto ? ` ${esc(siteDoLink(link))}` : ''}</a>`;
 }
 
+function botoesModelo(orc) {
+    const links = [...new Set(itensDoOrcamento(orc).map(i => linkSeguro(i.link)).filter(Boolean))];
+    return links.map(l => botaoModelo(l, false)).join('');
+}
+
 function hojeBR() {
     return new Date().toLocaleDateString('pt-BR');
 }
@@ -190,7 +195,6 @@ let orcamentos = [];
 let clientes = [];
 let tarefas = [];
 
-let orcamentoAtualCalculado = null;
 
 // Grava no cache local e, se o login na nuvem estiver ativo, no Firestore (ver nuvem.js)
 function salvarDados(chave, valor) {
@@ -548,7 +552,7 @@ function preencherClienteOrcamento() {
     if (cadastro && tel && !tel.value) tel.value = cadastro.telefone || '';
 }
 
-function adicionarLinhaFilamento(reset = false) {
+function adicionarLinhaFilamento(reset = false, filamentoId = '', peso = '') {
     reloadFromStorage();
 
     const container = document.getElementById('filamentos-container');
@@ -570,6 +574,8 @@ function adicionarLinhaFilamento(reset = false) {
     <button class="btn-delete" type="button" title="Remover" onclick="this.parentElement.remove(); calcularEmTempoReal()"><i class="fas fa-trash-can"></i></button>
   `;
     container.appendChild(div);
+    if (filamentoId) div.querySelector('.orc-filamento-select').value = filamentoId;
+    if (peso) div.querySelector('.orc-filamento-peso').value = peso;
 }
 
 function limparPrecoManual() {
@@ -577,125 +583,319 @@ function limparPrecoManual() {
     if (el) el.value = '';
 }
 
-function calcularEmTempoReal() {
-    if (!document.getElementById('orc-maquina')) return;
+// Itens já adicionados ao orçamento em edição (dados digitados, valores por peça)
+let itensOrcamento = [];
+let itemEditandoIndex = null;
 
-    reloadFromStorage();
+function numeroCampo(id) {
+    return parseFloat(document.getElementById(id)?.value) || 0;
+}
 
-    const maquinaId = document.getElementById('orc-maquina').value;
-    const tempoHoras = parseFloat(document.getElementById('orc-tempo')?.value) || 0;
-    const extras = parseFloat(document.getElementById('orc-extras')?.value) || 0;
-    const margemErro = parseFloat(document.getElementById('orc-erro')?.value) || 0;
-    const margemLucro = parseFloat(document.getElementById('orc-margem-lucro')?.value) || 0;
-    const precoManual = parseFloat(document.getElementById('orc-preco-manual')?.value);
-    const horasMao = parseFloat(document.getElementById('orc-mao')?.value) || 0;
-    const taxaVenda = Math.min(90, Math.max(0, parseFloat(document.getElementById('orc-taxa')?.value) || 0));
-    const valorHora = Number(carregarEmpresa().valorHora || 0);
+// Margens valem para o orçamento inteiro
+function margensOrcamento() {
+    return {
+        margemErro: numeroCampo('orc-erro'),
+        margemLucro: numeroCampo('orc-margem-lucro'),
+        taxaVenda: Math.min(90, Math.max(0, numeroCampo('orc-taxa'))),
+        valorHora: Number(carregarEmpresa().valorHora || 0)
+    };
+}
 
-    let custoFilamentoTotal = 0;
-    let filamentosUsados = [];
-
+function lerItemDoFormulario() {
+    const texto = id => (document.getElementById(id)?.value || '').trim();
+    const filamentosItem = [];
     const selects = document.querySelectorAll('.orc-filamento-select');
     const pesos = document.querySelectorAll('.orc-filamento-peso');
+    selects.forEach((sel, i) => {
+        const peso = parseFloat(pesos[i]?.value) || 0;
+        if (sel.value && peso > 0) filamentosItem.push({ id: sel.value, peso });
+    });
 
-    for (let i = 0; i < selects.length; i++) {
-        const idFil = selects[i].value;
-        const peso = parseFloat(pesos[i].value) || 0;
+    return {
+        produto: texto('orc-produto'),
+        categoria: texto('orc-categoria'),
+        link: texto('orc-link'),
+        maquinaId: texto('orc-maquina'),
+        tempoHoras: numeroCampo('orc-tempo'),
+        quantidade: Math.max(1, parseInt(texto('orc-quantidade'), 10) || 1),
+        filamentos: filamentosItem,
+        extras: numeroCampo('orc-extras'),
+        horasMao: numeroCampo('orc-mao'),
+        precoFixo: numeroCampo('orc-preco-manual')
+    };
+}
 
-        if (idFil && peso > 0) {
-            const fil = filamentos.find(f => String(f.id) === String(idFil));
-            if (fil) {
-                custoFilamentoTotal += (Number(fil.custoPorGrama || 0) * peso);
-                filamentosUsados.push({ id: fil.id, peso: peso, nome: `${fil.marca} ${fil.cor}` });
-            }
-        }
+function itemTemDados(item) {
+    return !!(item.produto || item.tempoHoras > 0 || item.filamentos.length || item.extras > 0 || item.precoFixo > 0 || item.horasMao > 0);
+}
+
+// Custos e preço de um item: valores por peça e total (x quantidade)
+function calcularItem(item, m = margensOrcamento()) {
+    let filamento = 0;
+    const usados = [];
+    (item.filamentos || []).forEach(({ id, peso }) => {
+        const fil = filamentos.find(f => String(f.id) === String(id));
+        if (!fil) return;
+        filamento += Number(fil.custoPorGrama || 0) * peso;
+        usados.push({ id: fil.id, peso, nome: `${fil.marca} ${fil.cor}` });
+    });
+
+    let energia = 0, desgaste = 0;
+    const maquina = maquinas.find(mq => String(mq.id) === String(item.maquinaId));
+    if (maquina) {
+        energia = (Number(maquina.potencia || 0) / 1000) * item.tempoHoras * Number(maquina.kwh || 0);
+        desgaste = (Number(maquina.valor || 0) / (Number(maquina.vidaUtil || 3000) || 3000)) * item.tempoHoras;
     }
 
-    let custoEnergia = 0;
-    let custoDesgaste = 0;
-
-    if (maquinaId) {
-        const maquina = maquinas.find(m => String(m.id) === String(maquinaId));
-        if (maquina) {
-            custoEnergia = (Number(maquina.potencia || 0) / 1000) * tempoHoras * Number(maquina.kwh || 0);
-            const vidaUtilHoras = Number(maquina.vidaUtil || 3000) || 3000;
-            custoDesgaste = (Number(maquina.valor || 0) / vidaUtilHoras) * tempoHoras;
-        }
-    }
-
-    let subtotal = custoFilamentoTotal + custoEnergia + custoDesgaste + extras;
-    const valorErro = subtotal * (margemErro / 100);
+    const extras = Number(item.extras || 0);
+    const subtotal = filamento + energia + desgaste + extras;
+    const erro = subtotal * (m.margemErro / 100);
     // Mão de obra (modelagem, pós-processamento) não entra na margem de falha
-    const custoMao = horasMao * valorHora;
-    const custoFinal = subtotal + valorErro + custoMao;
+    const mao = Number(item.horasMao || 0) * m.valorHora;
+    const custo = subtotal + erro + mao;
 
-    let precoVenda = 0;
-    let valorLucro = 0;
-    let valorTaxa = 0;
-
-    if (!Number.isNaN(precoManual) && precoManual > 0) {
-        precoVenda = precoManual;
-        valorTaxa = precoVenda * (taxaVenda / 100);
-        valorLucro = precoVenda - custoFinal - valorTaxa;
+    let preco, lucro, taxa;
+    if (item.precoFixo > 0) {
+        preco = item.precoFixo;
+        taxa = preco * (m.taxaVenda / 100);
+        lucro = preco - custo - taxa;
     } else {
         // O preço já embute as taxas da venda (marketplace, maquininha, imposto)
-        valorLucro = custoFinal * (margemLucro / 100);
-        precoVenda = (custoFinal + valorLucro) / (1 - taxaVenda / 100);
-        valorTaxa = precoVenda - custoFinal - valorLucro;
+        lucro = custo * (m.margemLucro / 100);
+        preco = (custo + lucro) / (1 - m.taxaVenda / 100);
+        taxa = preco - custo - lucro;
     }
 
+    const porPeca = { filamento, energia, desgaste, extras, erro, mao, custo, lucro, taxa, preco };
+    const q = item.quantidade || 1;
+    const total = Object.fromEntries(Object.entries(porPeca).map(([k, v]) => [k, v * q]));
+    return { porPeca, total, quantidade: q, filamentosUsados: usados };
+}
+
+function calcularEmTempoReal() {
+    if (!document.getElementById('orc-maquina')) return;
+    reloadFromStorage();
+
+    const m = margensOrcamento();
     const setTxt = (id, txt) => {
         const el = document.getElementById(id);
         if (el) el.innerText = txt;
     };
+    setTxt('orc-valor-hora', brl(m.valorHora));
 
-    // Os valores acima são por peça; o pedido multiplica pela quantidade
-    const quantidade = Math.max(1, parseInt(document.getElementById('orc-quantidade')?.value, 10) || 1);
+    // Prévia do item que está no formulário
+    const editor = lerItemDoFormulario();
+    const calcEditor = calcularItem(editor, m);
+    setTxt('item-preco', brl(calcEditor.total.preco));
+    setTxt('item-preco-detalhe', calcEditor.quantidade > 1 ? `${calcEditor.quantidade} × ${brl(calcEditor.porPeca.preco)}` : 'por peça');
 
-    setTxt('res-filamento', brl(custoFilamentoTotal * quantidade));
-    setTxt('res-energia', brl(custoEnergia * quantidade));
-    setTxt('res-desgaste', brl(custoDesgaste * quantidade));
-    setTxt('res-extras', brl(extras * quantidade));
-    setTxt('res-erro', brl(valorErro * quantidade));
-    setTxt('res-mao', brl(custoMao * quantidade));
-    setTxt('res-taxa', brl(valorTaxa * quantidade));
-    setTxt('orc-valor-hora', brl(valorHora));
-    setTxt('res-total-custo', brl(custoFinal * quantidade));
-    setTxt('res-preco-final', brl(precoVenda * quantidade));
-    setTxt('res-unitario', quantidade > 1 ? `${quantidade} peças de ${brl(precoVenda)}` : 'Preço por peça');
-    setTxt('res-lucro-final', `Lucro: ${brl(valorLucro * quantidade)}`);
+    // Itens do resumo: os adicionados + o que está no formulário (se tiver algo)
+    const lista = itensOrcamento.map((item, index) => ({ item, calc: calcularItem(item, m), index }));
+    if (itemEditandoIndex !== null && lista[itemEditandoIndex]) {
+        lista[itemEditandoIndex] = { item: editor, calc: calcEditor, index: itemEditandoIndex, editando: true };
+    } else if (itemTemDados(editor)) {
+        lista.push({ item: editor, calc: calcEditor, editando: true, novo: true });
+    }
 
-    orcamentoAtualCalculado = {
-        quantidade,
-        valorUnitario: precoVenda,
-        tempoHoras,
-        horasMao,
-        taxaVenda,
-        maoDeObra: custoMao * quantidade,
-        taxas: valorTaxa * quantidade,
-        custoTotal: custoFinal * quantidade,
-        valorVenda: precoVenda * quantidade,
-        lucro: valorLucro * quantidade,
-        filamentosUsados: filamentosUsados.map(item => ({ ...item, peso: item.peso * quantidade }))
+    const carrinho = document.getElementById('itens-orcamento');
+    if (carrinho) {
+        carrinho.innerHTML = lista.length ? lista.map(({ item, calc, index, editando, novo }) => `
+          <li class="${editando ? 'em-edicao' : ''}">
+            <div class="carrinho-info">
+              <strong>${esc(item.produto || 'Item sem nome')}</strong>
+              <small>${calc.quantidade} × ${brl(calc.porPeca.preco)}${editando ? ` · <em>${novo ? 'ainda não adicionado' : 'editando'}</em>` : ''}</small>
+            </div>
+            <div class="carrinho-valor">
+              <span>${brl(calc.total.preco)}</span>
+              ${editando ? '' : `
+              <div>
+                <button type="button" class="action-btn btn-edit" title="Editar item" onclick="editarItemOrcamento(${index})"><i class="fas fa-pen"></i></button>
+                <button type="button" class="action-btn btn-delete" title="Remover item" onclick="removerItemOrcamento(${index})"><i class="fas fa-trash-can"></i></button>
+              </div>`}
+            </div>
+          </li>`).join('')
+            : '<li class="carrinho-vazio">Preencha o item ao lado e clique em <b>Adicionar item ao orçamento</b>.</li>';
+    }
+
+    const soma = chave => lista.reduce((t, { calc }) => t + calc.total[chave], 0);
+    const pecas = lista.reduce((t, { calc }) => t + calc.quantidade, 0);
+
+    setTxt('res-qtd-itens', String(lista.length));
+    setTxt('res-filamento', brl(soma('filamento')));
+    setTxt('res-energia', brl(soma('energia')));
+    setTxt('res-desgaste', brl(soma('desgaste')));
+    setTxt('res-extras', brl(soma('extras')));
+    setTxt('res-erro', brl(soma('erro')));
+    setTxt('res-mao', brl(soma('mao')));
+    setTxt('res-taxa', brl(soma('taxa')));
+    setTxt('res-total-custo', brl(soma('custo')));
+    setTxt('res-preco-final', brl(soma('preco')));
+    setTxt('res-unitario', lista.length ? `${lista.length} ${lista.length > 1 ? 'itens' : 'item'} · ${pecas} ${pecas > 1 ? 'peças' : 'peça'}` : 'Nenhum item');
+    setTxt('res-lucro-final', `Lucro: ${brl(soma('lucro'))}`);
+}
+
+function validarItem(item) {
+    if (!item.produto) return 'Informe o nome do produto.';
+    if (item.tempoHoras > 0 && !item.maquinaId) return 'Selecione a impressora do item.';
+    if (item.link && !linkSeguro(item.link)) return 'O link do modelo não parece válido.';
+    if (!itemTemDados({ ...item, produto: '' })) return 'Informe tempo, filamento, extras ou um preço para o item.';
+    return '';
+}
+
+function limparItemEditor() {
+    ['orc-produto', 'orc-categoria', 'orc-link', 'orc-tempo', 'orc-preco-manual'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    const valores = { 'orc-quantidade': '1', 'orc-extras': '0', 'orc-mao': '0' };
+    Object.entries(valores).forEach(([id, v]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = v;
+    });
+    adicionarLinhaFilamento(true);
+}
+
+function modoEdicaoItem(ativo) {
+    const titulo = document.getElementById('item-titulo');
+    if (titulo) titulo.textContent = ativo ? `Editando item ${itemEditandoIndex + 1}` : (itensOrcamento.length ? 'Adicionar outro item' : 'Adicionar item');
+    const botao = document.getElementById('item-btn-adicionar');
+    if (botao) botao.innerHTML = ativo ? '<i class="fas fa-check"></i> Atualizar item' : '<i class="fas fa-cart-plus"></i> Adicionar item ao orçamento';
+    const cancelar = document.getElementById('item-btn-cancelar');
+    if (cancelar) cancelar.style.display = ativo ? '' : 'none';
+    document.getElementById('item-editor')?.classList.toggle('editando-item', ativo);
+}
+
+// Retorna true se o item foi adicionado/atualizado
+function adicionarItemOrcamento(silencioso = false) {
+    reloadFromStorage();
+    const item = lerItemDoFormulario();
+    const erro = validarItem(item);
+    if (erro) {
+        avisar(erro, 'erro');
+        return false;
+    }
+    item.link = linkSeguro(item.link);
+
+    const editando = itemEditandoIndex !== null;
+    if (editando) itensOrcamento[itemEditandoIndex] = item;
+    else itensOrcamento.push(item);
+
+    itemEditandoIndex = null;
+    limparItemEditor();
+    modoEdicaoItem(false);
+    calcularEmTempoReal();
+    if (!silencioso) avisar(editando ? 'Item atualizado!' : `"${item.produto}" adicionado ao orçamento.`);
+    return true;
+}
+
+function editarItemOrcamento(index) {
+    const item = itensOrcamento[index];
+    if (!item) return;
+    itemEditandoIndex = index;
+
+    const valores = {
+        'orc-produto': item.produto, 'orc-categoria': item.categoria, 'orc-link': item.link, 'orc-maquina': item.maquinaId,
+        'orc-tempo': item.tempoHoras || '', 'orc-quantidade': item.quantidade, 'orc-extras': item.extras,
+        'orc-mao': item.horasMao, 'orc-preco-manual': item.precoFixo || ''
     };
+    Object.entries(valores).forEach(([id, v]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = v ?? '';
+    });
+    adicionarLinhaFilamento(true);
+    const container = document.getElementById('filamentos-container');
+    if (item.filamentos.length) {
+        container.innerHTML = '';
+        item.filamentos.forEach(f => adicionarLinhaFilamento(false, f.id, f.peso));
+    }
+
+    modoEdicaoItem(true);
+    document.getElementById('item-editor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    calcularEmTempoReal();
+}
+
+function cancelarEdicaoItem() {
+    itemEditandoIndex = null;
+    limparItemEditor();
+    modoEdicaoItem(false);
+    calcularEmTempoReal();
+}
+
+function removerItemOrcamento(index) {
+    const item = itensOrcamento[index];
+    if (!item || !confirm(`Remover "${item.produto}" do orçamento?`)) return;
+    itensOrcamento.splice(index, 1);
+    if (itemEditandoIndex === index) cancelarEdicaoItem();
+    else if (itemEditandoIndex !== null && itemEditandoIndex > index) itemEditandoIndex--;
+    modoEdicaoItem(itemEditandoIndex !== null);
+    calcularEmTempoReal();
+}
+
+// Itens de um orçamento salvo (orçamentos antigos tinham um item só, nos campos do próprio orçamento)
+function itensDoOrcamento(orc) {
+    if (Array.isArray(orc.itens) && orc.itens.length) return orc.itens;
+    const qtd = Number(orc.quantidade || 1);
+    return [{
+        produto: orc.produto,
+        categoria: orc.categoria,
+        link: orc.link,
+        quantidade: qtd,
+        valorUnitario: Number(orc.valorUnitario || Number(orc.valorVenda || 0) / qtd),
+        valorTotal: Number(orc.valorVenda || 0),
+        filamentos: (orc.filamentosUsados || []).map(f => ({ ...f, peso: Number(f.peso || 0) / qtd }))
+    }];
+}
+
+function resumoProdutos(itens) {
+    if (!itens.length) return '';
+    const resto = itens.length - 1;
+    return resto ? `${itens[0].produto} + ${resto} ${resto > 1 ? 'itens' : 'item'}` : itens[0].produto;
 }
 
 async function salvarOrcamento() {
-    calcularEmTempoReal();
-
     const cliente = document.getElementById('orc-cliente')?.value?.trim();
-    const produto = document.getElementById('orc-produto')?.value?.trim();
-    const categoria = document.getElementById('orc-categoria')?.value || '';
-    const maquinaId = document.getElementById('orc-maquina')?.value;
+    if (!cliente) return avisar("Preencha o cliente.", "erro");
 
-    if (!cliente || !produto) return avisar("Preencha o cliente e o produto.", "erro");
-    if (!maquinaId) return avisar("Selecione a impressora.", "erro");
-    const linkDigitado = document.getElementById('orc-link')?.value?.trim();
-    if (linkDigitado && !linkSeguro(linkDigitado)) return avisar("O link do modelo não parece válido.", "erro");
-    if (!orcamentoAtualCalculado) return avisar("Erro no cálculo.", "erro");
+    // O item que ficou no formulário entra no orçamento automaticamente
+    if (itemTemDados(lerItemDoFormulario()) || itemEditandoIndex !== null) {
+        if (!adicionarItemOrcamento(true)) return;
+    }
+    if (!itensOrcamento.length) return avisar("Adicione pelo menos um item ao orçamento.", "erro");
 
     reloadFromStorage();
+    const m = margensOrcamento();
 
+    const itens = itensOrcamento.map(item => {
+        const calc = calcularItem(item, m);
+        return {
+            produto: item.produto,
+            categoria: item.categoria,
+            link: item.link,
+            maquinaId: item.maquinaId,
+            tempoHoras: item.tempoHoras,
+            quantidade: calc.quantidade,
+            filamentos: calc.filamentosUsados,       // gramas por peça
+            extras: item.extras,
+            horasMao: item.horasMao,
+            precoFixo: item.precoFixo,
+            valorUnitario: calc.porPeca.preco,
+            valorTotal: calc.total.preco,
+            custoTotal: calc.total.custo,
+            lucro: calc.total.lucro,
+            taxas: calc.total.taxa,
+            maoDeObra: calc.total.mao
+        };
+    });
+
+    // Filamento total do pedido (para dar baixa no estoque ao aprovar)
+    const porFilamento = {};
+    itens.forEach(item => item.filamentos.forEach(f => {
+        const chave = String(f.id);
+        if (!porFilamento[chave]) porFilamento[chave] = { id: f.id, nome: f.nome, peso: 0 };
+        porFilamento[chave].peso += f.peso * item.quantidade;
+    }));
+
+    const soma = chave => itens.reduce((t, item) => t + Number(item[chave] || 0), 0);
     const telefone = document.getElementById('orc-telefone')?.value?.trim() || '';
 
     // Liga o orçamento ao cadastro do cliente (e cadastra se for novo)
@@ -715,20 +915,21 @@ async function salvarOrcamento() {
         cliente,
         clienteId: cadastro.id,
         telefone,
-        produto,
-        categoria,
-        quantidade: orcamentoAtualCalculado.quantidade,
-        valorUnitario: orcamentoAtualCalculado.valorUnitario,
-        tempoHoras: orcamentoAtualCalculado.tempoHoras,
-        horasMao: orcamentoAtualCalculado.horasMao,
-        taxaVenda: orcamentoAtualCalculado.taxaVenda,
-        maoDeObra: orcamentoAtualCalculado.maoDeObra,
-        taxas: orcamentoAtualCalculado.taxas,
-        custoTotal: orcamentoAtualCalculado.custoTotal,
-        valorVenda: orcamentoAtualCalculado.valorVenda,
-        lucro: orcamentoAtualCalculado.lucro,
-        filamentosUsados: orcamentoAtualCalculado.filamentosUsados,
-        link: linkSeguro(document.getElementById('orc-link')?.value),
+        itens,
+        // Campos de resumo usados no histórico, produção e painel
+        produto: resumoProdutos(itens),
+        categoria: itens[0].categoria,
+        quantidade: soma('quantidade'),
+        valorUnitario: itens.length === 1 ? itens[0].valorUnitario : null,
+        tempoHoras: itens.reduce((t, i) => t + i.tempoHoras * i.quantidade, 0),
+        taxaVenda: m.taxaVenda,
+        maoDeObra: soma('maoDeObra'),
+        taxas: soma('taxas'),
+        custoTotal: soma('custoTotal'),
+        valorVenda: soma('valorTotal'),
+        lucro: soma('lucro'),
+        filamentosUsados: Object.values(porFilamento),
+        link: itens.find(i => i.link)?.link || '',
         prazo: document.getElementById('orc-prazo')?.value?.trim() || '',
         observacoes: document.getElementById('orc-obs')?.value?.trim() || '',
         status: 'Pendente'
@@ -745,10 +946,7 @@ async function salvarOrcamento() {
     }
     avisarDepois(tarefaOrigem ? "Orçamento salvo! Tarefa concluída." : "Orçamento salvo!");
 
-    if (document.getElementById('orc-cliente')) document.getElementById('orc-cliente').value = '';
-    if (document.getElementById('orc-produto')) document.getElementById('orc-produto').value = '';
-    if (document.getElementById('orc-telefone')) document.getElementById('orc-telefone').value = '';
-
+    itensOrcamento = [];
     window.location.href = "historico.html";
 }
 
@@ -773,7 +971,7 @@ function renderizarHistorico() {
         <button class="action-btn btn-approve com-texto" type="button" title="Aprovar venda (desconta o filamento do estoque)" onclick="mudarStatus(${index}, 'Aprovado')"><i class="fas fa-check"></i> Aprovar</button>`;
         }
         botoes += `
-        ${botaoModelo(orc.link, false)}
+        ${botoesModelo(orc)}
         <a class="action-btn btn-quote" href="orcamento-cliente.html?id=${orc.id}" title="Orçamento para o cliente"><i class="fas fa-file-invoice"></i></a>`;
         if (orc.status === 'Pendente') {
             botoes += `
@@ -796,6 +994,7 @@ function renderizarHistorico() {
         <td>
           <strong>${esc(orc.produto)}</strong><br>
           <small>${esc(orc.cliente)}</small>
+          ${itensDoOrcamento(orc).length > 1 ? `<div class="itens-mini">${itensDoOrcamento(orc).map(i => `<span>${i.quantidade}× ${esc(i.produto)}</span>`).join('')}</div>` : ''}
         </td>
         <td class="num">
           <strong>${brl(orc.valorVenda)}</strong><br>
@@ -1231,6 +1430,7 @@ function cartaoProducao(o, i) {
           <strong>${esc(o.produto)}</strong>
           ${qtd > 1 ? `<span class="fil-tipo">${qtd} un.</span>` : ''}
         </div>
+        ${itensDoOrcamento(o).length > 1 ? `<div class="itens-mini">${itensDoOrcamento(o).map(i => `<span>${i.quantidade}× ${esc(i.produto)}</span>`).join('')}</div>` : ''}
         <small><i class="fas fa-user"></i> ${esc(o.cliente)}</small>
         ${o.prazo ? `<small><i class="far fa-clock"></i> ${esc(o.prazo)}${o.dataAprovacao ? ` (aprovado ${esc(o.dataAprovacao)})` : ''}</small>` : ''}
         <div class="cartao-valores">
@@ -1240,7 +1440,7 @@ function cartaoProducao(o, i) {
         <div class="cartao-acoes">
           ${anterior ? `<button type="button" class="action-btn" title="Voltar para ${anterior.nome}" onclick="moverProducao(${o.id}, -1)"><i class="fas fa-arrow-left"></i></button>` : '<span></span>'}
           <div>
-            ${botaoModelo(o.link, false)}
+            ${botoesModelo(o)}
             <button type="button" class="action-btn btn-pay" title="Pagamentos" onclick="abrirPagamentos(${o.id})"><i class="fas fa-hand-holding-dollar"></i></button>
             ${etapaDe(o) === 'pronto' && o.telefone ? `<a class="action-btn btn-whats-mini" title="Avisar o cliente no WhatsApp" href="${avisoPronto}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i></a>` : ''}
           </div>
@@ -1764,6 +1964,7 @@ function iniciarPagina() {
 
         const taxa = document.getElementById('orc-taxa');
         if (taxa) taxa.value = Number(carregarEmpresa().taxaVenda || 0);
+        modoEdicaoItem(false);
 
         // Vindo da tela de tarefas: orcamento.html?tarefa=<id>
         const tarefa = tarefas.find(t => String(t.id) === new URLSearchParams(location.search).get('tarefa'));

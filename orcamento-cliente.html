@@ -130,7 +130,8 @@
     tbody td { padding: 14px 12px; border-bottom: 1px solid var(--linha); vertical-align: top; }
     .dir { text-align: right; white-space: nowrap; }
     .centro { text-align: center; }
-    .item-nome { font-size: 14px; font-weight: 700; }
+    .item-nome { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .item-num { width: 20px; height: 20px; border-radius: 6px; display: inline-grid; place-items: center; background: var(--laranja-claro); color: var(--laranja-escuro); font-size: 11px; flex-shrink: 0; }
     .specs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
     .spec { background: var(--fundo-bloco); border: 1px solid var(--linha); border-radius: 20px; padding: 2px 9px; font-size: 11px; color: var(--suave); }
     .spec b { color: var(--texto); font-weight: 600; }
@@ -235,14 +236,15 @@
       id: Date.now(),
       cliente: 'Maria Souza',
       telefone: '(11) 98765-4321',
-      produto: 'Vaso decorativo geométrico',
-      categoria: 'Decoração',
-      quantidade: 2,
-      valorUnitario: 44.95,
-      valorVenda: 89.9,
-      filamentosUsados: [{ id: 'ex', nome: 'PLA Azul', peso: 360 }],
+      produto: 'Vaso decorativo geométrico + 1 item',
+      itens: [
+        { produto: 'Vaso decorativo geométrico', categoria: 'Decoração', quantidade: 2, valorUnitario: 44.95, valorTotal: 89.9, filamentos: [{ id: 'ex', nome: 'PLA Azul', peso: 180 }] },
+        { produto: 'Chaveiro personalizado com nome', categoria: 'Brindes', quantidade: 10, valorUnitario: 6.5, valorTotal: 65, filamentos: [{ id: 'ex2', nome: 'PLA Branco', peso: 8 }] }
+      ],
+      quantidade: 12,
+      valorVenda: 154.9,
       prazo: '5 dias úteis',
-      observacoes: 'Altura de 15 cm, cor azul, acabamento lixado.'
+      observacoes: 'Vaso com 15 cm de altura e acabamento lixado. Nomes dos chaveiros conforme lista enviada.'
     };
 
     function montarDocumento() {
@@ -266,20 +268,23 @@
       const emissao = new Date(Number(orc.id));
       const validade = new Date(emissao.getTime() + Number(empresa.validadeDias || 7) * 86400000);
 
-      const quantidade = Number(orc.quantidade || 1);
-      const unitario = Number(orc.valorUnitario || Number(orc.valorVenda || 0) / quantidade);
-      const pesoTotal = (orc.filamentosUsados || []).reduce((s, i) => s + Number(i.peso || 0), 0);
+      const itens = itensDoOrcamento(orc);
+      const totalPecas = itens.reduce((s, i) => s + Number(i.quantidade || 1), 0);
 
-      const materiais = [...new Set((orc.filamentosUsados || []).map(item => {
-        const fil = filamentos.find(f => String(f.id) === String(item.id));
-        return fil ? [fil.tipo, fil.cor].filter(Boolean).join(' ') || item.nome : item.nome;
+      const materiaisDo = item => [...new Set((item.filamentos || []).map(f => {
+        const fil = filamentos.find(x => String(x.id) === String(f.id));
+        return fil ? [fil.tipo, fil.cor].filter(Boolean).join(' ') || f.nome : f.nome;
       }).filter(Boolean))];
 
-      const specs = [
-        materiais.length && `<span class="spec">Material: <b>${materiais.map(esc).join(', ')}</b></span>`,
-        pesoTotal > 0 && `<span class="spec">Peso aprox.: <b>${gramas(pesoTotal / quantidade)}</b>${quantidade > 1 ? ' por peça' : ''}</span>`,
-        orc.categoria && `<span class="spec">${esc(orc.categoria)}</span>`
-      ].filter(Boolean).join('');
+      const specsDo = item => {
+        const materiais = materiaisDo(item);
+        const peso = (item.filamentos || []).reduce((s, f) => s + Number(f.peso || 0), 0);
+        return [
+          materiais.length && `<span class="spec">Material: <b>${materiais.map(esc).join(', ')}</b></span>`,
+          peso > 0 && `<span class="spec">Peso aprox.: <b>${gramas(peso)}</b>${item.quantidade > 1 ? ' por peça' : ''}</span>`,
+          item.categoria && `<span class="spec">${esc(item.categoria)}</span>`
+        ].filter(Boolean).join('');
+      };
 
       const contatos = [
         empresa.whatsapp && `${esc(empresa.whatsapp)} <i class="fab fa-whatsapp"></i>`,
@@ -324,7 +329,7 @@
               </div>
               <div class="bloco">
                 <h3><i class="fas fa-box"></i> Pedido</h3>
-                <div class="linha-info"><span>Quantidade</span><strong>${quantidade} ${quantidade > 1 ? 'peças' : 'peça'}</strong></div>
+                <div class="linha-info"><span>Itens</span><strong>${itens.length} ${itens.length > 1 ? 'itens' : 'item'} · ${totalPecas} ${totalPecas > 1 ? 'peças' : 'peça'}</strong></div>
                 <div class="linha-info"><span>Prazo de entrega</span><strong>${esc(orc.prazo || 'A combinar')}</strong></div>
               </div>
             </div>
@@ -339,15 +344,16 @@
                 </tr>
               </thead>
               <tbody>
+                ${itens.map((item, i) => `
                 <tr>
                   <td>
-                    <div class="item-nome">${esc(orc.produto)}</div>
-                    ${specs ? `<div class="specs">${specs}</div>` : ''}
+                    <div class="item-nome">${itens.length > 1 ? `<span class="item-num">${i + 1}</span>` : ''}${esc(item.produto)}</div>
+                    ${specsDo(item) ? `<div class="specs">${specsDo(item)}</div>` : ''}
                   </td>
-                  <td class="centro">${quantidade}</td>
-                  <td class="dir col-unit">${brl(unitario)}</td>
-                  <td class="dir"><strong>${brl(orc.valorVenda)}</strong></td>
-                </tr>
+                  <td class="centro">${item.quantidade}</td>
+                  <td class="dir col-unit">${brl(item.valorUnitario)}</td>
+                  <td class="dir"><strong>${brl(item.valorTotal)}</strong></td>
+                </tr>`).join('')}
               </tbody>
             </table>
 
@@ -362,7 +368,7 @@
                 </div>` : ''}
               </div>
               <div class="totais">
-                <div class="linha-info"><span>Subtotal (${quantidade} × ${brl(unitario)})</span><strong>${brl(orc.valorVenda)}</strong></div>
+                <div class="linha-info"><span>Subtotal (${itens.length > 1 ? `${itens.length} itens` : `${itens[0].quantidade} × ${brl(itens[0].valorUnitario)}`})</span><strong>${brl(orc.valorVenda)}</strong></div>
                 <div class="total-final"><span>Total</span><span class="total-valor">${brl(orc.valorVenda)}</span></div>
               </div>
             </div>
@@ -399,9 +405,13 @@
         `Olá, ${orc.cliente}! Tudo bem? 😊`,
         `Segue o orçamento nº ${numero} da ${empresa.nome}:`,
         '',
-        `*${orc.produto}*${quantidade > 1 ? ` (${quantidade} peças)` : ''}`,
-        materiais.length ? `Material: ${materiais.join(', ')}` : null,
-        quantidade > 1 ? `Valor por peça: ${brl(unitario)}` : null,
+        ...itens.map(item => {
+          const materiais = materiaisDo(item);
+          return `• ${item.quantidade}× *${item.produto}*` +
+            (materiais.length ? ` (${materiais.join(', ')})` : '') +
+            ` — ${item.quantidade > 1 ? `${brl(item.valorUnitario)} cada = ` : ''}${brl(item.valorTotal)}`;
+        }),
+        '',
         `*Total: ${brl(orc.valorVenda)}*`,
         `Prazo de entrega: ${orc.prazo || 'a combinar'}`,
         `Válido até ${fmtData(validade)}.`,

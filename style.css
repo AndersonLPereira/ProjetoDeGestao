@@ -1120,3 +1120,57 @@ label .hint{ display:block; font-weight:400; font-size:.74rem; color:var(--text-
 .btn-modelo:hover{ background:var(--info-soft); color:var(--info); border-color:var(--info); }
 .btn-modelo.com-texto{ font-size:.8rem; }
 #form-tarefa[data-tipo="orcamento"] .so-tipo-tarefa{ display:none; }
+
+/* ===== ORÇAMENTO COM VÁRIOS ITENS ===== */
+.item-editor.editando-item{ border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-soft), var(--shadow); }
+.item-rodape{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:14px;
+  flex-wrap:wrap;
+  margin-top:8px;
+  padding-top:16px;
+  border-top:1px dashed var(--border-strong);
+}
+.item-preco{ display:flex; flex-direction:column; }
+.item-preco small{ color:var(--text-faint); font-size:.75rem; }
+.item-preco strong{ font-family:var(--font-display); font-size:1.4rem; color:var(--primary-strong); font-variant-numeric:tabular-nums; }
+.item-botoes{ display:flex; gap:8px; flex-wrap:wrap; }
+.item-botoes .btn-secondary{ margin-top:0; }
+
+.contador-itens{
+  margin-left:auto;
+  min-width:24px;
+  height:24px;
+  padding:0 8px;
+  border-radius:12px;
+  display:grid;
+  place-items:center;
+  font:700 .78rem var(--font);
+  background:var(--primary-soft);
+  color:var(--primary);
+}
+.carrinho{ list-style:none; margin:14px 0 4px; display:flex; flex-direction:column; gap:8px; }
+.carrinho li{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  padding:10px 12px;
+  border-radius:var(--radius-sm);
+  background:var(--panel);
+  border:1px solid var(--border);
+}
+.carrinho li.em-edicao{ border-style:dashed; border-color:var(--primary); background:var(--primary-soft); }
+.carrinho-info{ min-width:0; }
+.carrinho-info strong{ display:block; font-size:.9rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.carrinho-info small{ color:var(--text-faint); font-size:.76rem; }
+.carrinho-info em{ color:var(--primary); font-style:normal; }
+.carrinho-valor{ text-align:right; flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+.carrinho-valor span{ font-weight:700; font-variant-numeric:tabular-nums; }
+.carrinho-valor .action-btn{ width:28px; height:28px; font-size:.75rem; margin-left:2px; }
+.carrinho-vazio{ justify-content:center !important; text-align:center; color:var(--text-dim); font-size:.85rem; border-style:dashed !important; }
+
+.itens-mini{ display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+.itens-mini span{ font-size:.7rem; padding:1px 7px; border-radius:6px; background:var(--surface-2); color:var(--text-dim); }
+.nav-badge[hidden]{ display:none; }
