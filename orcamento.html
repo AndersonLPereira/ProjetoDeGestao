@@ -206,9 +206,22 @@
               <li><span>Taxas da venda</span> <span id="res-taxa">R$ 0,00</span></li>
             </ul>
 
+            <div class="desconto-box">
+              <label for="orc-desconto"><i class="fas fa-tag"></i> Desconto (R$) <small class="hint">para arredondar valores quebrados</small></label>
+              <input type="number" id="orc-desconto" min="0" step="0.01" placeholder="0,00" oninput="calcularEmTempoReal()">
+              <div class="arredondar">
+                <span>Arredondar para baixo:</span>
+                <button type="button" onclick="arredondarTotal(1)">R$ 1</button>
+                <button type="button" onclick="arredondarTotal(5)">R$ 5</button>
+                <button type="button" onclick="arredondarTotal(10)">R$ 10</button>
+                <button type="button" class="limpar" onclick="limparDesconto()" title="Remover desconto"><i class="fas fa-xmark"></i></button>
+              </div>
+            </div>
+
             <div class="final-price-box">
               <small>Total do orçamento</small>
               <h2 id="res-preco-final">R$ 0,00</h2>
+              <small id="res-desconto-info" class="desconto-info" hidden></small>
               <small id="res-unitario">Nenhum item</small><br>
               <small id="res-lucro-final">Lucro: R$ 0,00</small>
             </div>

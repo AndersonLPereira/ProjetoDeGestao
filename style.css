@@ -1205,3 +1205,30 @@ label .hint{ display:block; font-weight:400; font-size:.74rem; color:var(--text-
 .carrinho-foto img{ width:40px; height:40px; object-fit:cover; border-radius:6px; display:block; background:#fff; }
 .carrinho li{ align-items:center; }
 .carrinho li .carrinho-info{ flex:1; }
+
+/* ===== DESCONTO NO FECHAMENTO ===== */
+.desconto-box{
+  margin-top:16px;
+  padding:14px;
+  border-radius:var(--radius-sm);
+  background:var(--panel);
+  border:1px solid var(--border);
+}
+.desconto-box label i{ color:var(--primary); margin-right:4px; }
+.desconto-box input.invalido{ border-color:var(--danger); box-shadow:0 0 0 3px var(--danger-soft); }
+.arredondar{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:10px; font-size:.78rem; color:var(--text-faint); }
+.arredondar span{ margin-right:2px; }
+.arredondar button{
+  padding:5px 10px;
+  border-radius:16px;
+  border:1px solid var(--border-strong);
+  background:var(--surface-2);
+  color:var(--text-dim);
+  font:600 .78rem var(--font);
+  cursor:pointer;
+}
+.arredondar button:hover{ border-color:var(--primary); color:var(--primary); }
+.arredondar .limpar{ padding:5px 8px; }
+.desconto-info{ display:block; color:var(--text-dim) !important; text-transform:none !important; letter-spacing:0 !important; margin-bottom:4px; }
+.desconto-info[hidden]{ display:none; }
+#res-lucro-final.negativo{ color:var(--danger) !important; }

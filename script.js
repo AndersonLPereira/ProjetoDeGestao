@@ -853,11 +853,54 @@ function calcularEmTempoReal() {
     setTxt('res-extras', brl(soma('extras')));
     setTxt('res-erro', brl(soma('erro')));
     setTxt('res-mao', brl(soma('mao')));
-    setTxt('res-taxa', brl(soma('taxa')));
+    // Desconto no fechamento: reduz o total; taxas acompanham o valor final e o lucro absorve o resto
+    const subtotalPreco = soma('preco');
+    ultimoSubtotalOrcamento = subtotalPreco;
+    const fim = aplicarDesconto(subtotalPreco, soma('taxa'), soma('lucro'), numeroCampo('orc-desconto'));
+    const campoDesconto = document.getElementById('orc-desconto');
+    campoDesconto?.classList.toggle('invalido', numeroCampo('orc-desconto') > subtotalPreco + 0.001);
+
+    setTxt('res-taxa', brl(fim.taxas));
     setTxt('res-total-custo', brl(soma('custo')));
-    setTxt('res-preco-final', brl(soma('preco')));
+    setTxt('res-preco-final', brl(fim.total));
     setTxt('res-unitario', lista.length ? `${lista.length} ${lista.length > 1 ? 'itens' : 'item'} · ${pecas} ${pecas > 1 ? 'peças' : 'peça'}` : 'Nenhum item');
-    setTxt('res-lucro-final', `Lucro: ${brl(soma('lucro'))}`);
+    setTxt('res-lucro-final', `Lucro: ${brl(fim.lucro)}`);
+    document.getElementById('res-lucro-final')?.classList.toggle('negativo', fim.lucro < 0);
+
+    const linhaDesconto = document.getElementById('res-desconto-info');
+    if (linhaDesconto) {
+        linhaDesconto.hidden = !(fim.desconto > 0);
+        linhaDesconto.textContent = `Subtotal ${brl(fim.subtotal)} − desconto ${brl(fim.desconto)}`;
+    }
+}
+
+// Último subtotal calculado (usado pelos botões de arredondar)
+let ultimoSubtotalOrcamento = 0;
+
+const centavos = valor => Math.round((Number(valor) || 0) * 100) / 100;
+
+// Valores cobrados ficam em centavos exatos (o que o cliente paga)
+function aplicarDesconto(subtotalBruto, taxas, lucro, descontoDigitado) {
+    const subtotal = centavos(subtotalBruto);
+    const desconto = Math.min(centavos(Math.max(0, Number(descontoDigitado) || 0)), subtotal);
+    const total = centavos(subtotal - desconto);
+    const taxasFinal = subtotalBruto > 0 ? taxas * (total / subtotalBruto) : 0;
+    return { subtotal, desconto, total, taxas: taxasFinal, lucro: lucro + (total - subtotalBruto) + (taxas - taxasFinal) };
+}
+
+// Desconto que deixa o total redondo (múltiplo de "passo", para baixo)
+function arredondarTotal(passo) {
+    const subtotal = centavos(ultimoSubtotalOrcamento);
+    if (!(subtotal > 0)) return avisar('Adicione itens ao orçamento primeiro.', 'erro');
+    const redondo = Math.floor(subtotal / passo + 1e-9) * passo;
+    const desconto = Math.round((subtotal - redondo) * 100) / 100;
+    document.getElementById('orc-desconto').value = desconto > 0 ? desconto.toFixed(2) : '';
+    calcularEmTempoReal();
+}
+
+function limparDesconto() {
+    document.getElementById('orc-desconto').value = '';
+    calcularEmTempoReal();
 }
 
 function validarItem(item) {
@@ -996,6 +1039,7 @@ function carregarOrcamentoNoFormulario(orc, editar) {
         campo('orc-margem-lucro', orc.margemLucro);
     }
     if (orc.taxaVenda !== undefined) campo('orc-taxa', orc.taxaVenda);
+    campo('orc-desconto', orc.desconto > 0 ? Number(orc.desconto).toFixed(2) : '');
 
     itensOrcamento = itensDoOrcamento(orc).map(item => ({
         produto: item.produto || '',
@@ -1118,6 +1162,10 @@ async function salvarOrcamento() {
         salvarDados(DB_KEY_CLIENTES, clientes);
     }
 
+    const descontoDigitado = numeroCampo('orc-desconto');
+    if (descontoDigitado > soma('valorTotal') + 0.001) return avisar('O desconto é maior que o valor do orçamento.', 'erro');
+    const fim = aplicarDesconto(soma('valorTotal'), soma('taxas'), soma('lucro'), descontoDigitado);
+
     const dados = {
         cliente,
         clienteId: cadastro.id,
@@ -1133,10 +1181,13 @@ async function salvarOrcamento() {
         margemErro: m.margemErro,
         margemLucro: m.margemLucro,
         maoDeObra: soma('maoDeObra'),
-        taxas: soma('taxas'),
         custoTotal: soma('custoTotal'),
-        valorVenda: soma('valorTotal'),
-        lucro: soma('lucro'),
+        // Total dos itens, desconto do fechamento e valor final cobrado
+        subtotal: fim.subtotal,
+        desconto: fim.desconto,
+        valorVenda: fim.total,
+        taxas: fim.taxas,
+        lucro: fim.lucro,
         filamentosUsados: Object.values(porFilamento),
         link: itens.find(i => i.link)?.link || '',
         prazo: document.getElementById('orc-prazo')?.value?.trim() || '',
