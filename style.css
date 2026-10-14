@@ -1174,3 +1174,34 @@ label .hint{ display:block; font-weight:400; font-size:.74rem; color:var(--text-
 .itens-mini{ display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
 .itens-mini span{ font-size:.7rem; padding:1px 7px; border-radius:6px; background:var(--surface-2); color:var(--text-dim); }
 .nav-badge[hidden]{ display:none; }
+
+/* ===== FOTO DO ITEM ===== */
+.foto-campo{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:12px;
+  border:1px dashed var(--border-strong);
+  border-radius:var(--radius-sm);
+  background:var(--field);
+}
+.foto-preview:empty{ display:none; }
+.foto-preview img{
+  width:88px;
+  height:88px;
+  object-fit:cover;
+  border-radius:8px;
+  border:1px solid var(--border-strong);
+  display:block;
+  background:#fff;
+}
+.foto-acoes{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.foto-acoes .btn-secondary{ margin-top:0; }
+.foto-escolher{ cursor:pointer; margin-bottom:0; color:var(--text-dim); font-size:.85rem; }
+.foto-campo .com-foto-txt, .foto-campo .foto-remover{ display:none; }
+.foto-campo.tem-foto .com-foto-txt{ display:inline; }
+.foto-campo.tem-foto .foto-remover{ display:inline-flex; }
+.foto-campo.tem-foto .sem-foto-txt{ display:none; }
+.carrinho-foto img{ width:40px; height:40px; object-fit:cover; border-radius:6px; display:block; background:#fff; }
+.carrinho li{ align-items:center; }
+.carrinho li .carrinho-info{ flex:1; }

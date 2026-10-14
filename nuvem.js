@@ -8,7 +8,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/fireba
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 import {
     initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-    collection, doc, getDocs, setDoc, onSnapshot, serverTimestamp
+    collection, doc, getDoc, getDocs, setDoc, onSnapshot, serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 import { firebaseConfig } from './firebase-config.js';
 
@@ -80,6 +80,15 @@ function iniciarNuvem() {
         window.nuvem = {
             usuario,
             salvar: (chave, valor) => comLimite(gravar(db, usuario.uid, chave, valor)),
+            // Imagens ficam uma por documento, fora dos dados principais (limite de 1 MB por documento)
+            salvarImagem: async (id, dados) => {
+                await comLimite(setDoc(doc(db, 'usuarios', usuario.uid, 'imagens', id), { dados, criadoEm: serverTimestamp() }));
+                return id;
+            },
+            lerImagem: async id => {
+                const snap = await getDoc(doc(db, 'usuarios', usuario.uid, 'imagens', id));
+                return snap.exists() ? snap.data().dados : '';
+            },
             sair: async () => {
                 await signOut(auth);
             }

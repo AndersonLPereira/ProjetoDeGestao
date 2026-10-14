@@ -585,6 +585,127 @@ function limparPrecoManual() {
     if (el) el.value = '';
 }
 
+// =====================
+// FOTOS DOS ITENS
+// =====================
+// Foto do item que está no formulário: { id } (já salva) ou { dados } (nova, ainda não enviada)
+let fotoItemEditor = null;
+const cacheImagens = {};
+
+// Reduz a imagem no navegador (JPEG, até 1000 px) para caber no banco de dados
+function reduzirImagem(arquivo, maxLado = 1000, qualidade = 0.8) {
+    return new Promise((resolve, reject) => {
+        if (!arquivo || !String(arquivo.type).startsWith('image/')) return reject(new Error('tipo'));
+        const url = URL.createObjectURL(arquivo);
+        const img = new Image();
+        img.onload = () => {
+            const escala = Math.min(1, maxLado / Math.max(img.width, img.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.width * escala);
+            canvas.height = Math.round(img.height * escala);
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#fff';  // PNG com fundo transparente fica branco
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(url);
+
+            let q = qualidade;
+            let dados = canvas.toDataURL('image/jpeg', q);
+            while (dados.length > 850000 && q > 0.4) {
+                q -= 0.1;
+                dados = canvas.toDataURL('image/jpeg', q);
+            }
+            resolve(dados);
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('leitura'));
+        };
+        img.src = url;
+    });
+}
+
+async function salvarImagem(dados) {
+    const id = `img${Date.now()}${Math.random().toString(36).slice(2, 7)}`;
+    if (window.nuvem?.salvarImagem) await window.nuvem.salvarImagem(id, dados);
+    else localStorage.setItem(`nexus_img_${id}`, dados);
+    cacheImagens[id] = dados;
+    return id;
+}
+
+async function lerImagem(id) {
+    if (!id) return '';
+    if (cacheImagens[id]) return cacheImagens[id];
+    let dados = '';
+    try {
+        dados = window.nuvem?.lerImagem ? await window.nuvem.lerImagem(id) : (localStorage.getItem(`nexus_img_${id}`) || '');
+    } catch (erro) {
+        console.error(erro);
+    }
+    if (dados) cacheImagens[id] = dados;
+    return dados;
+}
+
+// Preenche <img data-foto-id="..."> dentro de um elemento (as imagens chegam depois do texto)
+function preencherImagens(raiz = document) {
+    raiz.querySelectorAll('img[data-foto-id]').forEach(async img => {
+        const dados = await lerImagem(img.dataset.fotoId);
+        if (dados) img.src = dados;
+        else img.closest('.foto-container, figure')?.remove();
+    });
+}
+
+function srcFoto(foto) {
+    if (!foto) return '';
+    return foto.dados || cacheImagens[foto.id] || '';
+}
+
+function mostrarFotoEditor() {
+    const area = document.getElementById('item-foto');
+    if (!area) return;
+    const preview = area.querySelector('.foto-preview');
+    if (fotoItemEditor) {
+        area.classList.add('tem-foto');
+        preview.innerHTML = `<img src="${srcFoto(fotoItemEditor)}" ${fotoItemEditor.id && !srcFoto(fotoItemEditor) ? `data-foto-id="${fotoItemEditor.id}"` : ''} alt="Foto do item">`;
+        preencherImagens(preview);
+    } else {
+        area.classList.remove('tem-foto');
+        preview.innerHTML = '';
+    }
+}
+
+async function receberFotoItem(arquivo) {
+    try {
+        fotoItemEditor = { dados: await reduzirImagem(arquivo) };
+        mostrarFotoEditor();
+        calcularEmTempoReal();
+        avisar('Imagem adicionada ao item.');
+    } catch (erro) {
+        avisar(erro.message === 'tipo' ? 'Escolha um arquivo de imagem (JPG, PNG, WEBP).' : 'Não foi possível ler essa imagem. Tente salvar como JPG ou PNG.', 'erro');
+    }
+}
+
+function escolherFotoItem(input) {
+    const arquivo = input.files?.[0];
+    input.value = '';
+    if (arquivo) receberFotoItem(arquivo);
+}
+
+function removerFotoItem() {
+    fotoItemEditor = null;
+    mostrarFotoEditor();
+    calcularEmTempoReal();
+}
+
+// Ctrl+V com um print na tela de orçamento
+document.addEventListener('paste', evento => {
+    if (!document.getElementById('item-foto')) return;
+    const arquivo = [...(evento.clipboardData?.items || [])].find(i => i.type.startsWith('image/'))?.getAsFile();
+    if (!arquivo) return;
+    evento.preventDefault();
+    receberFotoItem(arquivo);
+});
+
 // Itens já adicionados ao orçamento em edição (dados digitados, valores por peça)
 let itensOrcamento = [];
 let itemEditandoIndex = null;
@@ -623,7 +744,8 @@ function lerItemDoFormulario() {
         filamentos: filamentosItem,
         extras: numeroCampo('orc-extras'),
         horasMao: numeroCampo('orc-mao'),
-        precoFixo: numeroCampo('orc-preco-manual')
+        precoFixo: numeroCampo('orc-preco-manual'),
+        foto: fotoItemEditor
     };
 }
 
@@ -703,6 +825,7 @@ function calcularEmTempoReal() {
     if (carrinho) {
         carrinho.innerHTML = lista.length ? lista.map(({ item, calc, index, editando, novo }) => `
           <li class="${editando ? 'em-edicao' : ''}">
+            ${item.foto ? `<span class="foto-container carrinho-foto"><img src="${srcFoto(item.foto)}" ${item.foto.id && !srcFoto(item.foto) ? `data-foto-id="${item.foto.id}"` : ''} alt=""></span>` : ''}
             <div class="carrinho-info">
               <strong>${esc(item.produto || 'Item sem nome')}</strong>
               <small>${calc.quantidade} × ${brl(calc.porPeca.preco)}${editando ? ` · <em>${novo ? 'ainda não adicionado' : 'editando'}</em>` : ''}</small>
@@ -717,6 +840,7 @@ function calcularEmTempoReal() {
             </div>
           </li>`).join('')
             : '<li class="carrinho-vazio">Preencha o item ao lado e clique em <b>Adicionar item ao orçamento</b>.</li>';
+        preencherImagens(carrinho);
     }
 
     const soma = chave => lista.reduce((t, { calc }) => t + calc.total[chave], 0);
@@ -755,6 +879,8 @@ function limparItemEditor() {
         if (el) el.value = v;
     });
     adicionarLinhaFilamento(true);
+    fotoItemEditor = null;
+    mostrarFotoEditor();
 }
 
 function modoEdicaoItem(ativo) {
@@ -810,6 +936,9 @@ function editarItemOrcamento(index) {
         container.innerHTML = '';
         item.filamentos.forEach(f => adicionarLinhaFilamento(false, f.id, f.peso));
     }
+
+    fotoItemEditor = item.foto || null;
+    mostrarFotoEditor();
 
     modoEdicaoItem(true);
     document.getElementById('item-editor').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -878,7 +1007,8 @@ function carregarOrcamentoNoFormulario(orc, editar) {
         filamentos: (item.filamentos || []).map(f => ({ id: String(f.id), peso: Number(f.peso || 0) })),
         extras: Number(item.extras || 0),
         horasMao: Number(item.horasMao || 0),
-        precoFixo: Number(item.precoFixo || 0) || (temMargens ? 0 : Number(item.valorUnitario || 0))
+        precoFixo: Number(item.precoFixo || 0) || (temMargens ? 0 : Number(item.valorUnitario || 0)),
+        foto: item.fotoId ? { id: item.fotoId } : null
     }));
 
     const numero = String(orc.id).slice(-6);
@@ -928,6 +1058,18 @@ async function salvarOrcamento() {
     }
     if (!itensOrcamento.length) return avisar("Adicione pelo menos um item ao orçamento.", "erro");
 
+    // Envia as fotos novas (uma por documento na nuvem)
+    try {
+        for (const item of itensOrcamento) {
+            if (item.foto?.dados && !item.foto.id) {
+                item.foto = { id: await salvarImagem(item.foto.dados), dados: item.foto.dados };
+            }
+        }
+    } catch (erro) {
+        console.error(erro);
+        return avisar('Não foi possível enviar a foto. Verifique a internet e tente de novo.', 'erro');
+    }
+
     reloadFromStorage();
     const m = margensOrcamento();
 
@@ -944,6 +1086,7 @@ async function salvarOrcamento() {
             extras: item.extras,
             horasMao: item.horasMao,
             precoFixo: item.precoFixo,
+            fotoId: item.foto?.id || '',
             valorUnitario: calc.porPeca.preco,
             valorTotal: calc.total.preco,
             custoTotal: calc.total.custo,

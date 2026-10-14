@@ -130,6 +130,14 @@
     tbody td { padding: 14px 12px; border-bottom: 1px solid var(--linha); vertical-align: top; }
     .dir { text-align: right; white-space: nowrap; }
     .centro { text-align: center; }
+    .item-linha { display: flex; gap: 12px; align-items: flex-start; }
+    .item-foto { width: 58px; height: 58px; object-fit: cover; border-radius: 8px; border: 1px solid var(--linha); display: block; background: #fff; }
+    .galeria { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    .galeria.uma { grid-template-columns: minmax(0, 340px); }
+    .galeria figure { border: 1px solid var(--linha); border-radius: 10px; overflow: hidden; background: var(--fundo-bloco); break-inside: avoid; }
+    .galeria img { width: 100%; height: 150px; object-fit: contain; display: block; background: #fff; }
+    .galeria.uma img { height: 230px; }
+    .galeria figcaption { font-size: 11px; color: var(--suave); padding: 6px 10px; border-top: 1px solid var(--linha); }
     .item-nome { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
     .item-num { width: 20px; height: 20px; border-radius: 6px; display: inline-grid; place-items: center; background: var(--laranja-claro); color: var(--laranja-escuro); font-size: 11px; flex-shrink: 0; }
     .specs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
@@ -350,8 +358,13 @@
                 ${itens.map((item, i) => `
                 <tr>
                   <td>
-                    <div class="item-nome">${itens.length > 1 ? `<span class="item-num">${i + 1}</span>` : ''}${esc(item.produto)}</div>
-                    ${specsDo(item) ? `<div class="specs">${specsDo(item)}</div>` : ''}
+                    <div class="item-linha">
+                      ${item.fotoId ? `<span class="foto-container"><img class="item-foto" data-foto-id="${esc(item.fotoId)}" alt=""></span>` : ''}
+                      <div>
+                        <div class="item-nome">${itens.length > 1 ? `<span class="item-num">${i + 1}</span>` : ''}${esc(item.produto)}</div>
+                        ${specsDo(item) ? `<div class="specs">${specsDo(item)}</div>` : ''}
+                      </div>
+                    </div>
                   </td>
                   <td class="centro">${item.quantidade}</td>
                   <td class="dir col-unit">${brl(item.valorUnitario)}</td>
@@ -359,6 +372,18 @@
                 </tr>`).join('')}
               </tbody>
             </table>
+
+            ${itens.some(i => i.fotoId) ? `
+            <div class="secao galeria-secao">
+              <h3><i class="fas fa-image"></i> Imagens do projeto</h3>
+              <div class="galeria ${itens.filter(i => i.fotoId).length === 1 ? 'uma' : ''}">
+                ${itens.map((item, i) => item.fotoId ? `
+                <figure>
+                  <img data-foto-id="${esc(item.fotoId)}" alt="${esc(item.produto)}">
+                  <figcaption>${itens.length > 1 ? `${i + 1}. ` : ''}${esc(item.produto)}</figcaption>
+                </figure>` : '').join('')}
+              </div>
+            </div>` : ''}
 
             <div class="fechamento">
               <div class="pagamento">
@@ -403,6 +428,7 @@
           </footer>
         </article>
       `;
+      preencherImagens(alvo);
 
       const mensagem = [
         `Olá, ${orc.cliente}! Tudo bem? 😊`,

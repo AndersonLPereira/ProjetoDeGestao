@@ -95,6 +95,21 @@
                 <input type="url" id="orc-link" placeholder="https://makerworld.com/pt/models/...">
               </div>
 
+              <div class="input-group">
+                <label>Foto ou print do projeto <small class="hint">aparece no PDF do cliente</small></label>
+                <div class="foto-campo" id="item-foto">
+                  <div class="foto-preview"></div>
+                  <div class="foto-acoes">
+                    <label class="btn-secondary btn-sm foto-escolher">
+                      <i class="fas fa-image"></i> <span class="sem-foto-txt">Escolher imagem</span><span class="com-foto-txt">Trocar imagem</span>
+                      <input type="file" accept="image/*" onchange="escolherFotoItem(this)" hidden>
+                    </label>
+                    <button type="button" class="btn-secondary btn-sm foto-remover" onclick="removerFotoItem()"><i class="fas fa-trash-can"></i> Remover</button>
+                    <small class="hint sem-foto-txt">ou tire um print e cole aqui com <b>Ctrl+V</b></small>
+                  </div>
+                </div>
+              </div>
+
               <div class="row">
                 <div class="input-group">
                   <label for="orc-maquina">Impressora</label>
